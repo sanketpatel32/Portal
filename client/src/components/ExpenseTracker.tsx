@@ -11,14 +11,15 @@ import {
   Pencil,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   BarChart3,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ExpenseChart } from "./expense/ExpenseChart";
 import { RecurringExpensesList } from "./expense/RecurringExpenses";
 import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { ModuleShell } from "./ui/ModuleShell";
+import { Pagination } from "./ui/Pagination";
 import { SectionHeader } from "./ui/SectionHeader";
 import { TabBar } from "./ui/TabBar";
 import { EmptyState } from "./ui/EmptyState";
@@ -82,6 +83,11 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [etMobileTab, setEtMobileTab] = useState<"list" | "add" | "chart">("list");
+  const [listPage, setListPage] = useState(1);
+  const LIST_PAGE_SIZE = 8;
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [formAmount, setFormAmount] = useState("");
   const [formDesc, setFormDesc] = useState("");
@@ -103,8 +109,9 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
     params.set("limit", "200");
     if (typeFilter) params.set("type", typeFilter);
     if (categoryFilter) params.set("category", categoryFilter);
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
     return params;
-  }, [selectedMonth, typeFilter, categoryFilter]);
+  }, [selectedMonth, typeFilter, categoryFilter, searchQuery]);
 
   const fetchData = async () => {
     setChartLoading(true);
@@ -144,8 +151,27 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
   useEffect(() => {
     void Promise.resolve().then(() => fetchData());
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch when filters/month change
-  }, [selectedMonth, typeFilter, categoryFilter, chartGroupBy, token]);
+  }, [selectedMonth, typeFilter, categoryFilter, chartGroupBy, searchQuery, token]);
   useEffect(() => { formAmountRef.current?.focus(); }, []);
+  const listTotalPages = Math.max(1, Math.ceil(expenses.length / LIST_PAGE_SIZE));
+  const clampedListPage = Math.min(listPage, listTotalPages);
+
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setSearchQuery(value);
+      setListPage(1);
+    }, 300);
+  };
+
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearchQuery("");
+    setListPage(1);
+  };
+
+  useEffect(() => () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); }, []);
 
   const resetFormDate = () => {
     setFormDate(toLocalDateInput(new Date()));
@@ -351,12 +377,18 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
 
   if (loading) {
     return (
-      <ModuleShell variant="content" maxWidth="6xl">
-        <div className="mb-4 flex min-h-[44px] items-center justify-between">
-          <div className="h-4 w-40 animate-pulse rounded bg-white/[0.06]" />
-          <div className="h-11 w-16 animate-pulse rounded bg-white/[0.06]" />
-        </div>
-        <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
+      <ModuleShell
+        variant="content"
+        maxWidth="7xl"
+        fillViewport
+        header={
+          <div className="mb-4 flex min-h-[44px] items-center justify-between">
+            <div className="h-4 w-40 animate-pulse rounded bg-white/[0.06]" />
+            <div className="h-11 w-16 animate-pulse rounded bg-white/[0.06]" />
+          </div>
+        }
+      >
+        <div className="grid min-h-0 flex-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
           <div className="space-y-4">
             <div className="h-48 animate-pulse rounded border border-white/10 bg-white/[0.03]" />
             <div className="h-72 animate-pulse rounded border border-white/10 bg-white/[0.03]" />
@@ -368,18 +400,18 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
   }
 
   return (
-    <ModuleShell variant="content" maxWidth="6xl">
-      <ModuleHeaderBar
-        title="Monthly Expense Tracker"
-        icon={<PieChart className="size-4" />}
-        onBack={onBack}
-        actions={
-          <span className="font-mono text-[13px] text-zinc-700 mr-2">
-            · {summary.totalCount} {summary.totalCount === 1 ? "entry" : "entries"}
-          </span>
-        }
-      />
-
+    <ModuleShell
+      variant="content"
+      maxWidth="7xl"
+      fillViewport
+      header={
+        <ModuleHeaderBar
+          title="Monthly Expense Tracker"
+          icon={<PieChart className="size-4" />}
+          onBack={onBack}
+        />
+      }
+    >
       {/* Mobile Tab Selector */}
       <TabBar
         tabs={[
@@ -393,12 +425,13 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
         className="flex lg:hidden items-center justify-center mb-6 border-b border-white/10 pb-4 w-full"
       />
 
-      <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
+      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="grid min-h-0 flex-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-stretch">
         <div className={cn(
-          "flex flex-col gap-4 lg:flex w-full lg:w-auto",
-          etMobileTab === "list" || etMobileTab === "add" ? "flex" : "hidden"
+          "flex min-h-0 flex-col gap-4",
+          etMobileTab === "list" || etMobileTab === "add" ? "flex" : "hidden lg:flex"
         )}>
-          <div className={cn("lg:block w-full", etMobileTab === "list" ? "block" : "hidden")}>
+          <div className={cn("shrink-0", etMobileTab === "list" ? "block" : "hidden lg:block")}>
             <section className={cn(panelClass, "p-5")}>
               <div className="flex items-center justify-between gap-3">
                 <p className="font-mono text-[13px] uppercase tracking-[0.22em] text-zinc-500">Month total</p>
@@ -446,17 +479,20 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
             </section>
           </div>
 
-          <div className={cn("lg:block w-full", etMobileTab === "add" ? "block" : "hidden")}>
-            <section className={cn(panelClass, "p-5")}>
+          <div className={cn(
+            "flex min-h-0 flex-1 flex-col",
+            etMobileTab === "add" ? "flex" : "hidden lg:flex"
+          )}>
+            <section className={cn(panelClass, "flex min-h-0 flex-1 flex-col p-5")}>
               <SectionHeader
                 title={editId ? "Edit expense" : "New expense"}
                 icon={editId ? <Pencil className="size-4" strokeWidth={1.4} /> : <Plus className="size-4" strokeWidth={1.4} />}
                 borderless
-                className="mb-5"
+                className="mb-5 shrink-0"
               />
 
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3" noValidate>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FormField label="Amount">
                     <input
                       ref={formAmountRef}
@@ -479,7 +515,7 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                   </FormField>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FormField label="Date">
                     <input
                       type="date"
@@ -512,62 +548,56 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                 </FormField>
 
                 {!editId && (
-                  <details className="group rounded border border-white/[0.08] bg-black/20">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:text-zinc-300 [&::-webkit-details-marker]:hidden">
-                      <span>Advanced — Recurring</span>
-                      <ChevronDown className="size-3.5 shrink-0 transition-transform group-open:rotate-180" strokeWidth={1.5} />
-                    </summary>
-                    <div className="space-y-3 border-t border-white/[0.06] px-3 pb-3 pt-3">
-                      <label className="flex cursor-pointer items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={recurringEnabled}
-                          onChange={(e) => {
-                            setRecurringEnabled(e.target.checked);
-                            setFormError(null);
-                          }}
-                          className="size-3.5 accent-white"
+                  <div className="space-y-3 rounded border border-white/[0.08] bg-black/20 px-3 py-3">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={recurringEnabled}
+                        onChange={(e) => {
+                          setRecurringEnabled(e.target.checked);
+                          setFormError(null);
+                        }}
+                        className="size-3.5 accent-white"
+                      />
+                      <span className="font-mono text-[13px] uppercase tracking-[0.12em] text-zinc-400">
+                        Repeat monthly using this form
+                      </span>
+                    </label>
+
+                    {recurringEnabled && (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <DatePickerField
+                          label="Start date"
+                          value={recurringStartDate}
+                          onChange={setRecurringStartDate}
                         />
-                        <span className="font-mono text-[13px] uppercase tracking-[0.12em] text-zinc-400">
-                          Repeat monthly using this form
-                        </span>
-                      </label>
+                        <label className="block">
+                          <span className={labelClass}>Until</span>
+                          <select
+                            value={recurringDuration}
+                            onChange={(e) => setRecurringDuration(e.target.value as RecurringDuration)}
+                            className={fieldClass}
+                          >
+                            {RECURRING_DURATION_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    )}
 
-                      {recurringEnabled && (
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <DatePickerField
-                            label="Start date"
-                            value={recurringStartDate}
-                            onChange={setRecurringStartDate}
-                          />
-                          <label className="block">
-                            <span className={labelClass}>For how many months</span>
-                            <select
-                              value={recurringDuration}
-                              onChange={(e) => setRecurringDuration(e.target.value as RecurringDuration)}
-                              className={fieldClass}
-                            >
-                              {RECURRING_DURATION_OPTIONS.map((opt) => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                              ))}
-                            </select>
-                          </label>
-                        </div>
-                      )}
-
-                      {recurring.length > 0 && (
-                        <div className="border-t border-white/[0.06] pt-3">
-                          <RecurringExpensesList
-                            token={token}
-                            recurring={recurring}
-                            loading={false}
-                            playBeep={playBeep}
-                            onChanged={fetchData}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </details>
+                    {recurring.length > 0 && (
+                      <div className="border-t border-white/[0.06] pt-3">
+                        <RecurringExpensesList
+                          token={token}
+                          recurring={recurring}
+                          loading={false}
+                          playBeep={playBeep}
+                          onChanged={fetchData}
+                        />
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {formError && (
@@ -576,7 +606,7 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                   </p>
                 )}
 
-                <div className="flex gap-3 pt-1">
+                <div className="mt-auto flex gap-3 pt-1">
                   {editId && (
                     <button type="button" onClick={clearForm} className="flex-1 border border-white/10 px-4 py-3 font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:border-white/30 hover:text-white">
                       Cancel
@@ -597,11 +627,11 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
         </div>
 
         <div className={cn(
-          "flex flex-col gap-4 lg:flex w-full lg:w-auto",
-          etMobileTab === "list" || etMobileTab === "chart" ? "flex" : "hidden"
+          "flex min-h-0 flex-1 flex-col gap-4",
+          etMobileTab === "list" || etMobileTab === "chart" ? "flex" : "hidden lg:flex"
         )}>
-          <div className={cn("lg:block w-full", etMobileTab === "chart" ? "block" : "hidden")}>
-            <section className={cn(panelClass, "p-5")}>
+          <div className={cn("w-full", etMobileTab === "chart" ? "block" : "hidden lg:block")}>
+            <section className={cn(panelClass, "p-5 lg:flex lg:flex-col lg:h-full")}>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <BarChart3 className="size-4 text-zinc-500" strokeWidth={1.4} />
@@ -637,33 +667,68 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
             </section>
           </div>
 
-          <div className={cn("flex flex-col flex-1 lg:flex w-full", etMobileTab === "list" ? "flex" : "hidden")}>
-            <section className={cn(panelClass, "flex flex-1 flex-col p-0")}>
-              <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <IndianRupee className="size-4 text-zinc-500" strokeWidth={1.4} />
-                  <h2 className="font-mono text-sm uppercase tracking-[0.28em] text-white">
-                    {monthLabel(selectedMonth)}
-                  </h2>
+          <div className={cn(
+            "flex min-h-0 flex-1 flex-col",
+            etMobileTab === "list" ? "flex" : "hidden lg:flex"
+          )}>
+            <section className={cn(panelClass, "flex min-h-0 flex-1 flex-col p-0")}>
+              <div className="flex flex-col gap-3 border-b border-white/[0.08] px-5 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <IndianRupee className="size-4 text-zinc-500" strokeWidth={1.4} />
+                    <h2 className="font-mono text-sm uppercase tracking-[0.28em] text-white">
+                      {monthLabel(selectedMonth)}
+                    </h2>
+                  </div>
+                  <div className="relative min-w-[14rem] flex-1 sm:max-w-xs">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-zinc-600" strokeWidth={1.5} />
+                    <input
+                      type="text"
+                      value={searchInput}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      placeholder="Search by name…"
+                      aria-label="Search expenses by name"
+                      className="w-full border border-white/10 bg-black/40 py-2 pl-9 pr-20 font-mono text-[13px] text-zinc-200 outline-none transition-app placeholder:text-zinc-700 focus:border-white/30"
+                    />
+                    <div className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
+                      <span className="font-mono text-[11px] tabular-nums text-zinc-600">
+                        {expenses.length} {expenses.length === 1 ? "entry" : "entries"}
+                      </span>
+                      {searchInput && (
+                        <button
+                          type="button"
+                          onClick={clearSearch}
+                          aria-label="Clear search"
+                          className="pointer-events-auto flex size-5 items-center justify-center text-zinc-600 transition-colors hover:text-white"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <span className="font-mono text-[13px] tabular-nums text-zinc-600">{expenses.length} shown</span>
               </div>
 
               {expenses.length === 0 ? (
                 <EmptyState
-                  icon={<IndianRupee />}
-                  message={`No expenses for ${monthLabel(selectedMonth)}.`}
+                  icon={searchQuery ? <Search /> : <IndianRupee />}
+                  message={searchQuery
+                    ? `No expenses match "${searchQuery}".`
+                    : `No expenses for ${monthLabel(selectedMonth)}.`}
                   className="flex-1 py-16"
                 />
               ) : (
+                <>
                 <div className="flex-1 overflow-y-auto">
                   <div className="sticky top-0 z-10 grid grid-cols-[1fr_auto_auto_2rem] items-center gap-3 border-b border-white/[0.06] bg-[#09090e] px-5 py-2.5 max-sm:hidden">
                     <span className="font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-600">Description</span>
-                    <span className="text-right font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-600">Date</span>
-                    <span className="text-right font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-600">Amount</span>
+                    <span className="min-w-[7rem] text-right font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-600">Date</span>
+                    <span className="min-w-[6rem] text-right font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-600">Amount</span>
                     <span />
                   </div>
-                  {expenses.map((exp) => (
+                  {expenses
+                    .slice((clampedListPage - 1) * LIST_PAGE_SIZE, clampedListPage * LIST_PAGE_SIZE)
+                    .map((exp) => (
                     <div
                       key={exp.id}
                       role="button"
@@ -697,10 +762,10 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                         )}
                       </div>
                       <div className="flex w-full items-center justify-between sm:contents">
-                        <span className="text-right font-mono text-[13px] leading-4 text-zinc-500">
+                        <span className="min-w-[7rem] text-right font-mono text-[13px] leading-4 text-zinc-500">
                           {formatExpenseDate(exp.date)}
                         </span>
-                        <span className="text-right font-mono text-sm tabular-nums text-white">
+                        <span className="min-w-[6rem] text-right font-mono text-sm tabular-nums text-white">
                           {formatCurrency(exp.amount)}
                         </span>
                       </div>
@@ -715,6 +780,13 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                     </div>
                   ))}
                 </div>
+                <Pagination
+                  page={clampedListPage}
+                  totalPages={listTotalPages}
+                  onChange={setListPage}
+                  className="px-5"
+                />
+                </>
               )}
 
               <div className="mt-auto border-t border-white/[0.08] bg-black/30">
@@ -751,6 +823,7 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
             </section>
           </div>
         </div>
+      </div>
       </div>
     </ModuleShell>
   );

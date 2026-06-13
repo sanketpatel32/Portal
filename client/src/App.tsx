@@ -89,10 +89,10 @@ function App() {
       {isAuthenticated && activeApp !== null && (
         <div
           className={cn(
-            "absolute inset-0 z-30 bg-black flex flex-col font-sans items-center p-3 sm:p-6 justify-start",
+            "absolute inset-0 z-30 flex flex-col items-stretch bg-black p-3 font-sans justify-start sm:p-6",
             (activeSubapp === "nosql-client" || activeSubapp === "subapp4" || activeSubapp === "postman" || activeSubapp === "writing-agent") 
               ? "overflow-hidden" 
-              : "overflow-y-auto"
+              : "overflow-x-hidden overflow-y-auto"
           )}
         >
           {activeApp === 2 ? (
@@ -157,7 +157,7 @@ function App() {
               renderSubappPlaceholder(appOneSubapps.find((s) => s.id === activeSubapp)?.label ?? "Module")
             ) : (
               // Developer Utility Portal Main Page
-              <div className="w-full max-w-7xl flex flex-col items-center animate-scale-up px-2">
+              <div className="mx-auto flex w-full max-w-7xl animate-scale-up flex-col items-center px-2">
                 <ModuleHeaderBar
                   title="Developer Utility Portal"
                   onBack={() => setActiveApp(null)}

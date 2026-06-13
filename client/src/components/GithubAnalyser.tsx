@@ -148,13 +148,17 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
   const githubPageResults = githubResults.slice(githubPageStart, githubPageStart + githubResultsPerPage);
 
   return (
-    <ModuleShell variant="content" maxWidth="6xl">
-      <ModuleHeaderBar
-        title="GitHub Issue Analyser"
-        icon={<GitFork className="size-4 shrink-0 text-zinc-500" strokeWidth={1.5} />}
-        onBack={onBack}
-      />
-
+    <ModuleShell
+      variant="content"
+      maxWidth="6xl"
+      header={
+        <ModuleHeaderBar
+          title="GitHub Issue Analyser"
+          icon={<GitFork className="size-4 shrink-0 text-zinc-500" strokeWidth={1.5} />}
+          onBack={onBack}
+        />
+      }
+    >
       <TabBar
         tabs={[
           { id: "filters", label: "Filters" },

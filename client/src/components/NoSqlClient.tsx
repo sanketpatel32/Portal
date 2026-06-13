@@ -14,7 +14,7 @@ import {
   Plug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ConnectionStatusIndicator, type ConnectionStatus } from "@/lib/connection-status";
+import { type ConnectionStatus } from "@/lib/connection-status";
 import { DbClientToolbarButtons } from "@/lib/db-client-toolbar";
 import { ConnectionPanel } from "./shared/ConnectionPanel";
 import { ErrorBanner } from "./ui/ErrorBanner";
@@ -169,7 +169,6 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
   const [mongoUri, setMongoUri] = useState(() => getStoredMongoUri());
   const [showConnectionPanel, setShowConnectionPanel] = useState(() => !hasStoredMongoUri());
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
-  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
   const [bannerError, setBannerError] = useState<string | null>(null);
 
   const [newDbName, setNewDbName] = useState("");
@@ -206,7 +205,7 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
 
   const testConnection = useCallback(async () => {
     setConnectionStatus("testing");
-    setConnectionMessage(null);
+    setBannerError(null);
 
     const result = await runConnectionTest({
       value: mongoUri,
@@ -222,13 +221,12 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
 
     if (result.ok) {
       setConnectionStatus("connected");
-      setConnectionMessage(result.message);
       playBeep("success");
       return true;
     }
 
     setConnectionStatus("error");
-    setConnectionMessage(result.message);
+    setBannerError(result.message ?? "Connection failed");
     playBeep("error");
     return false;
   }, [getHeaders, mongoUri, playBeep]);
@@ -260,7 +258,6 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
       onError: (message) => {
         showError(message);
         setConnectionStatus("error");
-        setConnectionMessage(message);
       },
       fallbackError: "Network error — is the server running?",
     });
@@ -366,7 +363,6 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
       } else {
         setShowConnectionPanel(true);
         setConnectionStatus("idle");
-        setConnectionMessage("Connect to your own MongoDB cluster");
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -619,13 +615,6 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
               <h1 className="truncate font-mono text-[13px] uppercase tracking-[0.22em] text-zinc-400">
                 NoSQL Client
               </h1>
-              <div className="mt-0.5">
-                <ConnectionStatusIndicator
-                  status={connectionStatus}
-                  message={connectionMessage}
-                  hasConfig={hasUri}
-                />
-              </div>
             </div>
           </>
         }
@@ -652,7 +641,6 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
             setMongoUri("");
             clearStoredMongoUri();
             setConnectionStatus("idle");
-            setConnectionMessage("Connect to your own MongoDB cluster");
             setDatabases([]);
             setShowConnectionPanel(true);
           }}

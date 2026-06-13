@@ -10,11 +10,18 @@ const maxWidthClass = {
   none: "max-w-none",
 } as const;
 
+/** Full-bleed within the App overlay padding without shifting sibling layout */
+const overlayBleedClass =
+  "relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 px-3 sm:px-6";
+
 interface ModuleShellProps {
   variant?: ModuleShellVariant;
   maxWidth?: keyof typeof maxWidthClass;
   moduleClass?: string;
   className?: string;
+  fillViewport?: boolean;
+  /** Renders full viewport width above the max-width content column */
+  header?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -23,20 +30,31 @@ export const ModuleShell: React.FC<ModuleShellProps> = ({
   maxWidth = "6xl",
   moduleClass,
   className,
+  header,
+  fillViewport = false,
   children,
 }) => {
   return (
     <div
       className={cn(
         moduleClass,
-        "w-full animate-scale-up select-none",
-        maxWidthClass[maxWidth],
+        "w-full max-w-none self-stretch animate-scale-up select-none",
+        fillViewport && "flex min-h-[calc(100dvh-3rem)] flex-col sm:min-h-[calc(100dvh-3rem)]",
         variant === "tool" && "flex h-[calc(100dvh-48px)] min-h-0 flex-col overflow-hidden",
-        variant === "content" && "mx-auto",
         className
       )}
     >
-      {children}
+      {header && <div className={cn("flex-shrink-0", overlayBleedClass)}>{header}</div>}
+      <div
+        className={cn(
+          "mx-auto w-full",
+          maxWidthClass[maxWidth],
+          fillViewport && "flex min-h-0 flex-1 flex-col",
+          variant === "tool" && "flex min-h-0 flex-1 flex-col overflow-hidden"
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 };

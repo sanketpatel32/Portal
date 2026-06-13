@@ -15,7 +15,7 @@ import {
   Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ConnectionStatusIndicator, type ConnectionStatus } from "@/lib/connection-status";
+import { type ConnectionStatus } from "@/lib/connection-status";
 import { DbClientToolbarButtons } from "@/lib/db-client-toolbar";
 import { ConnectionPanel } from "./shared/ConnectionPanel";
 import { ErrorBanner } from "./ui/ErrorBanner";
@@ -180,7 +180,6 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
   const [connectionString, setConnectionString] = useState(() => getStoredSqlConnection());
   const [showConnectionPanel, setShowConnectionPanel] = useState(() => !hasStoredSqlConnection());
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
-  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
   const [connectionDialect, setConnectionDialect] = useState<string | null>(null);
 
   const [history, setHistory] = useState<QueryHistoryEntry[]>(() => {
@@ -228,7 +227,7 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
 
   const testConnection = useCallback(async () => {
     setConnectionStatus("testing");
-    setConnectionMessage(null);
+    setBannerError(null);
 
     const result = await runConnectionTest({
       value: connectionString,
@@ -236,23 +235,24 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
       endpoint: "/api/sql/connection/test",
       headers: getHeaders(),
       bodyKey: "connectionString",
-      buildSuccessMessage: (data) =>
-        data.database
+      buildSuccessMessage: (data) => {
+        const base = data.database
           ? `Connected — ${String(data.dialect ?? "sql")} · ${String(data.database)}`
-          : `Connected — ${String(data.dialect ?? "sql")}`,
+          : `Connected — ${String(data.dialect ?? "sql")}`;
+        return data.sslForced ? `${base} (SSL auto-enabled)` : base;
+      },
     });
 
     if (result.ok) {
       setConnectionStatus("connected");
       setConnectionDialect(typeof result.data?.dialect === "string" ? result.data.dialect : null);
-      setConnectionMessage(result.message);
       playBeep("success");
       return true;
     }
 
     setConnectionStatus("error");
     setConnectionDialect(null);
-    setConnectionMessage(result.message);
+    setBannerError(result.message ?? "Connection failed");
     playBeep("error");
     return false;
   }, [getHeaders, connectionString, playBeep]);
@@ -275,7 +275,6 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
         setShowConnectionPanel(true);
         setConnectionStatus("idle");
         setConnectionDialect(null);
-        setConnectionMessage("Connect to PostgreSQL, MySQL, or SQLite");
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -455,16 +454,6 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
                   Read-only
                 </span>
               </div>
-              <p className="mt-0.5 truncate font-mono text-[13px] uppercase tracking-[0.14em] text-zinc-600">
-                PostgreSQL · MySQL · SQLite
-              </p>
-              <div className="mt-0.5 flex items-center gap-2">
-                <ConnectionStatusIndicator
-                  status={connectionStatus}
-                  message={connectionMessage}
-                  hasConfig={hasConnection}
-                />
-              </div>
             </div>
           </>
         }
@@ -492,7 +481,6 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
             clearStoredSqlConnection();
             setConnectionStatus("idle");
             setConnectionDialect(null);
-            setConnectionMessage("Connect to PostgreSQL, MySQL, or SQLite");
             setSchemaData([]);
             setShowConnectionPanel(true);
           }}

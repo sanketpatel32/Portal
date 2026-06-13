@@ -35,6 +35,11 @@ function buildExpenseFilter(searchParams: URLSearchParams) {
   if (filterCategory) {
     filter.category = filterCategory;
   }
+  const q = searchParams.get("q")?.trim();
+  if (q) {
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    filter.description = { $regex: escaped, $options: "i" };
+  }
   return filter;
 }
 

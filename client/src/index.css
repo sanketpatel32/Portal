@@ -113,10 +113,26 @@
   --sidebar-ring: oklch(1 0 0);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  button:not(:disabled):not(.disabled),
+  [role="button"]:not(:disabled):not(.disabled),
+  a {
+    cursor: pointer;
+  }
+  select,
+  [role="combobox"],
+  [role="listbox"] {
+    cursor: default;
+  }
+  button:disabled,
+  [role="button"]:disabled {
+    cursor: not-allowed;
+  }
 }
 
 body {

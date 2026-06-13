@@ -28,7 +28,7 @@ export const BackButton: React.FC<BackButtonProps> = ({
       type="button"
       onClick={handleClick}
       className={cn(
-        "flex min-h-[44px] items-center justify-center gap-2 border border-white/10 px-3 py-2.5 font-mono text-[13px] uppercase tracking-[0.2em] text-zinc-500 transition-app hover:border-white/30 hover:text-white cursor-pointer select-none motion-press",
+        "flex-shrink-0 flex min-h-[44px] items-center justify-center gap-2 border border-white/10 px-3 py-2.5 font-mono text-[13px] uppercase tracking-[0.2em] text-zinc-500 transition-app hover:border-white/30 hover:text-white cursor-pointer select-none motion-press",
         className
       )}
       {...props}

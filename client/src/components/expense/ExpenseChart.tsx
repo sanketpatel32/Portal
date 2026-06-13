@@ -7,6 +7,7 @@ import {
   chartPointLabel,
   formatCurrency,
 } from "./shared";
+import { ExpensePieChart } from "./ExpensePieChart";
 
 type Props = {
   series: ChartPoint[];
@@ -33,6 +34,10 @@ export function ExpenseChart({ series, groupBy, loading }: Props) {
         No data for this period
       </p>
     );
+  }
+
+  if (groupBy === "type" || groupBy === "category") {
+    return <ExpensePieChart series={series} groupBy={groupBy} />;
   }
 
   const max = Math.max(...series.map((p) => p.total), 1);

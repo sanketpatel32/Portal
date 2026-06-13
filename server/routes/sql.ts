@@ -47,6 +47,7 @@ export async function handleSql(ctx: RouteContext): Promise<Response | null> {
           ok: true,
           dialect: result.dialect,
           database: result.database,
+          sslForced: result.sslForced === true,
           connectionString: maskSqlConnectionString(connectionString),
         }),
         { status: 200, headers: getResponseHeaders(req) }

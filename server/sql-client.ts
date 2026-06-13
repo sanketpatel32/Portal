@@ -219,38 +219,123 @@ export async function testSqlConnection(connectionString: string): Promise<{
   dialect?: SqlDialect;
   database?: string;
   error?: string;
+  sslForced?: boolean;
 }> {
-  try {
-    const dialect = detectSqlDialect(connectionString);
-    const database = databaseLabel(connectionString, dialect);
+  const tryConnect = async (cs: string, forceSsl: boolean): Promise<void> => {
+    const dialect = detectSqlDialect(cs);
 
     if (dialect === "postgres") {
-      const sql = postgres(connectionString, { max: 1, connect_timeout: 10, idle_timeout: 5 });
+      const options: Record<string, unknown> = { max: 1, connect_timeout: 10, idle_timeout: 5 };
+      if (forceSsl) options.ssl = "require";
+      const sql = postgres(cs, options);
       try {
         await sql`SELECT 1 AS ok`;
       } finally {
         await sql.end({ timeout: 5 });
       }
     } else if (dialect === "mysql") {
-      const conn = await mysql.createConnection(connectionString);
+      const conn = await mysql.createConnection({
+        uri: cs.replace(/^mysql2:/, "mysql:"),
+        ssl: forceSsl ? {} : undefined,
+      });
       try {
         await conn.query("SELECT 1 AS ok");
       } finally {
         await conn.end();
       }
     } else {
-      const db = new Database(sqlitePath(connectionString), { readonly: true });
+      const db = new Database(sqlitePath(cs), { readonly: true });
       try {
         db.query("SELECT 1 AS ok").get();
       } finally {
         db.close();
       }
     }
+  };
 
-    return { ok: true, dialect, database };
+  try {
+    const dialect = detectSqlDialect(connectionString);
+    const database = databaseLabel(connectionString, dialect);
+
+    try {
+      await tryConnect(connectionString, false);
+      return { ok: true, dialect, database };
+    } catch (firstErr) {
+      const message = errMessage(firstErr);
+      if (dialect !== "sqlite" && looksLikeSslError(message)) {
+        try {
+          await tryConnect(withForcedSsl(connectionString, dialect), true);
+          return { ok: true, dialect, database, sslForced: true };
+        } catch {
+          // Fall through to report the original error which is usually clearer.
+        }
+      }
+      return { ok: false, dialect, error: message };
+    }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Connection failed";
-    return { ok: false, error: message };
+    return { ok: false, error: errMessage(err) };
+  }
+}
+
+function errMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Connection failed";
+}
+
+function looksLikeSslError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("no encryption") ||
+    lower.includes("pg_hba.conf") ||
+    lower.includes("ssl is not enabled") ||
+    lower.includes("does not support ssl") ||
+    lower.includes("requires ssl") ||
+    lower.includes("server does not support ssl") ||
+    lower.includes("ssl/tls") ||
+    lower.includes("no ssl") ||
+    lower.includes("must use ssl") ||
+    lower.includes("tls required")
+  );
+}
+
+function withForcedSsl(connectionString: string, dialect: SqlDialect): string {
+  const [base, query = ""] = connectionString.split("?");
+  const params = new URLSearchParams(query);
+
+  if (dialect === "postgres") {
+    if (params.get("sslmode")) params.set("sslmode", "require");
+    else params.append("sslmode", "require");
+    if (params.get("ssl")) params.delete("ssl");
+  } else if (dialect === "mysql") {
+    params.set("ssl", "true");
+  }
+
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+/**
+ * Probes the connection string; if the first attempt fails with an SSL-style
+ * error, returns a version with SSL forced on. SQLite is returned as-is.
+ * Falls back to the original string if the SSL retry also fails (the caller's
+ * real query will then surface the original error).
+ */
+async function resolveEffectiveConnectionString(connectionString: string): Promise<string> {
+  const dialect = detectSqlDialect(connectionString);
+  if (dialect === "sqlite") return connectionString;
+  if (/\bsslmode=/i.test(connectionString) || /[?&]ssl=/i.test(connectionString)) {
+    return connectionString;
+  }
+  try {
+    const probe = await testSqlConnection(connectionString);
+    if (probe.ok) {
+      return probe.sslForced ? withForcedSsl(connectionString, dialect) : connectionString;
+    }
+    if (probe.error && looksLikeSslError(probe.error)) {
+      return withForcedSsl(connectionString, dialect);
+    }
+    return connectionString;
+  } catch {
+    return connectionString;
   }
 }
 
@@ -259,12 +344,13 @@ export async function listSqlSchema(connectionString: string): Promise<{
   dialect: SqlDialect;
   tables: SqlSchemaItem[];
 }> {
-  const dialect = detectSqlDialect(connectionString);
-  const database = databaseLabel(connectionString, dialect);
+  const effective = await resolveEffectiveConnectionString(connectionString);
+  const dialect = detectSqlDialect(effective);
+  const database = databaseLabel(effective, dialect);
   const startTime = performance.now();
 
   if (dialect === "postgres") {
-    const sql = postgres(connectionString, { max: 1, connect_timeout: 10, idle_timeout: 5 });
+    const sql = postgres(effective, { max: 1, connect_timeout: 10, idle_timeout: 5 });
     try {
       const rows = await sql<{ name: string; type: string }[]>`
         SELECT table_name AS name, table_type AS type
@@ -283,7 +369,7 @@ export async function listSqlSchema(connectionString: string): Promise<{
   }
 
   if (dialect === "mysql") {
-    const conn = await mysql.createConnection(connectionString);
+    const conn = await mysql.createConnection(effective);
     try {
       const [rows] = await conn.query<Array<{ name: string; type: string }>>("SHOW FULL TABLES");
       const tables = rows.map((row) => {
@@ -296,7 +382,7 @@ export async function listSqlSchema(connectionString: string): Promise<{
     }
   }
 
-  const db = new Database(sqlitePath(connectionString), { readonly: true });
+  const db = new Database(sqlitePath(effective), { readonly: true });
   try {
     const rows = db
       .query<{ name: string; type: string }>(
@@ -313,11 +399,12 @@ export async function listSqlSchema(connectionString: string): Promise<{
 
 export async function executeReadOnlySql(connectionString: string, sqlText: string): Promise<SqlQueryResult> {
   const query = assertReadOnlySql(sqlText);
-  const dialect = detectSqlDialect(connectionString);
+  const effective = await resolveEffectiveConnectionString(connectionString);
+  const dialect = detectSqlDialect(effective);
   const startTime = performance.now();
 
   if (dialect === "postgres") {
-    const sql = postgres(connectionString, {
+    const sql = postgres(effective, {
       max: 1,
       connect_timeout: 10,
       idle_timeout: 5,
@@ -330,14 +417,14 @@ export async function executeReadOnlySql(connectionString: string, sqlText: stri
           setTimeout(() => reject(new Error("Query timed out")), QUERY_TIMEOUT_MS)
         ),
       ])) as Record<string, unknown>[];
-      return rowsToResult(rows, startTime, connectionString, dialect);
+      return rowsToResult(rows, startTime, effective, dialect);
     } finally {
       await sql.end({ timeout: 5 });
     }
   }
 
   if (dialect === "mysql") {
-    const conn = await mysql.createConnection(connectionString);
+    const conn = await mysql.createConnection(effective);
     try {
       const [rows] = (await Promise.race([
         conn.query(query),
@@ -346,17 +433,17 @@ export async function executeReadOnlySql(connectionString: string, sqlText: stri
         ),
       ])) as [Record<string, unknown>[], unknown];
       const list = Array.isArray(rows) ? rows : [];
-      return rowsToResult(list as Record<string, unknown>[], startTime, connectionString, dialect);
+      return rowsToResult(list as Record<string, unknown>[], startTime, effective, dialect);
     } finally {
       await conn.end();
     }
   }
 
-  const db = new Database(sqlitePath(connectionString), { readonly: true });
+  const db = new Database(sqlitePath(effective), { readonly: true });
   try {
     const stmt = db.query(query);
     const rows = stmt.all() as Record<string, unknown>[];
-    return rowsToResult(rows, startTime, connectionString, dialect);
+    return rowsToResult(rows, startTime, effective, dialect);
   } finally {
     db.close();
   }
