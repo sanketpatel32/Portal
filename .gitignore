@@ -1,0 +1,87 @@
+# ─── Dependencies ───────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.pnp.*
+.yarn/cache
+.yarn/install-state.gz
+
+# ─── Build output ───────────────────────────────────────────
+dist/
+dist-ssr/
+out/
+build/
+*.tsbuildinfo
+*.tgz
+
+# ─── Logs ───────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# ─── Environment variables ─────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.defaults
+
+# ─── Code coverage ──────────────────────────────────────────
+coverage/
+*.lcov
+.nyc_output/
+
+# ─── Caches ─────────────────────────────────────────────────
+.cache/
+.eslintcache
+.stylelintcache
+.parcel-cache
+.vite/
+.turbo/
+*.local
+
+# ─── Editor / IDE ───────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ─── Operating system ───────────────────────────────────────
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ─── Nested lockfiles (root bun.lock is kept) ──────────────
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
+
+# ─── Fallow ─────────────────────────────────────────────────
+.fallow/
+
+# ─── Generated / local tooling ──────────────────────────────
+graphify-out/
+.cursor/
+.agents/
+.claude/
+.gemini/
+.commandcode/
+.impeccable/
+
+# ─── AI tooling caches & runtime artifacts ─────────────────
+.opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
+.opencode/bun.lock
+.opencode/.gitignore

@@ -1,0 +1,19 @@
+{
+  "name": "auraflow-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["client", "server"],
+  "scripts": {
+    "dev": "bun run dev.ts",
+    "server": "bun --cwd server run --hot index.ts",
+    "client": "bun --cwd client run dev",
+    "fallow": "fallow dead-code --fail-on-issues",
+    "fallow:full": "fallow",
+    "fallow:fix": "fallow fix --yes",
+    "fallow:health": "fallow health"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.0",
+    "fallow": "^2.96.0"
+  }
+}
