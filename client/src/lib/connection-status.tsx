@@ -6,21 +6,21 @@ type Props = {
   status: ConnectionStatus;
   message: string | null;
   hasConfig: boolean;
-  prefix: "sql" | "nql";
 };
 
-export function ConnectionStatusIndicator({ status, message, hasConfig, prefix }: Props) {
+export function ConnectionStatusIndicator({ status, message, hasConfig }: Props) {
   return (
-    <div className="flex items-center gap-2 mt-0.5">
+    <div className="mt-0.5 flex items-center gap-2">
       <span
         className={cn(
-          `${prefix}-status-dot`,
-          status === "connected" && `${prefix}-status-dot-ok`,
-          status === "error" && `${prefix}-status-dot-error`,
-          status === "testing" && `${prefix}-status-dot-testing`
+          "size-2 shrink-0 rounded-full",
+          status === "connected" && "bg-emerald-400",
+          status === "error" && "bg-red-400",
+          status === "testing" && "status-dot-testing bg-zinc-400",
+          status === "idle" && "bg-zinc-600"
         )}
       />
-      <span className="font-mono text-[9px] text-zinc-600 truncate">
+      <span className="truncate font-mono text-[9px] text-zinc-600">
         {status === "testing"
           ? "Connecting…"
           : message || (hasConfig ? "Not connected" : "No connection configured")}

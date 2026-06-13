@@ -262,7 +262,7 @@ export const WheelPicker: React.FC<WheelPickerProps> = ({
       
       {/* Label under dial */}
       {label && (
-        <span className="text-[10px] font-mono tracking-[0.25em] text-zinc-500 uppercase mt-8 select-none">
+        <span className="text-[13px] font-mono tracking-[0.25em] text-zinc-500 uppercase mt-8 select-none">
           {label}
         </span>
       )}

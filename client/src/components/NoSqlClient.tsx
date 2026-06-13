@@ -7,21 +7,38 @@ import {
   Plus,
   Trash2,
   ChevronRight,
-  Loader2,
   Search,
   RefreshCw,
   Pencil,
   X,
-  Copy,
-  Check,
-  Eye,
-  EyeOff,
-  AlertCircle,
   Plug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConnectionStatusIndicator, type ConnectionStatus } from "@/lib/connection-status";
 import { DbClientToolbarButtons } from "@/lib/db-client-toolbar";
+import { ConnectionPanel } from "./shared/ConnectionPanel";
+import { ErrorBanner } from "./ui/ErrorBanner";
+import { EmptyState } from "./ui/EmptyState";
+import { Pagination } from "./ui/Pagination";
+import { CopyButton } from "./ui/CopyButton";
+import { ModuleShell } from "./ui/ModuleShell";
+import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
+import { AppButton } from "./ui/AppButton";
+import { AppInput } from "./ui/AppInput";
+import { AppTextArea } from "./ui/AppTextArea";
+import { ToolSplitGrid } from "./ui/ToolSplitGrid";
+import { ToolPanel } from "./ui/ToolPanel";
+import { SectionHeader } from "./ui/SectionHeader";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
+import {
+  interactiveCardClass,
+  interactiveRowClass,
+  metaTextClass,
+  panelClass,
+  preOutputClass,
+  toolMainClass,
+  toolScrollClass,
+} from "@/lib/ui-classes";
 import { parseApiError } from "@/lib/parse-api-error";
 import { fetchJsonResource } from "@/lib/fetch-json-resource";
 import { runConnectionTest } from "@/lib/test-db-connection";
@@ -78,15 +95,18 @@ function JsonEditor({
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   return (
-    <div className="nql-json-editor-wrap">
-      <textarea
+    <div className="flex min-h-0 flex-1 flex-col">
+      <AppTextArea
         ref={inputRef}
+        variant="code"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         spellCheck={false}
-        className={cn("nql-json-textarea", error && "nql-json-textarea-error")}
+        className={cn("min-h-[200px] flex-1", error && "border-red-400/40")}
       />
-      {error && <div className="nql-json-error">{error}</div>}
+      {error && (
+        <div className="mt-2 font-mono text-[13px] text-red-400/90">{error}</div>
+      )}
     </div>
   );
 }
@@ -112,22 +132,24 @@ function DocumentRow({
     .join(", ");
 
   return (
-    <div className="nql-document-row group">
-      <div className="nql-document-row-content" onClick={onClick}>
-        <div className="nql-document-id">
+    <div className={cn(interactiveRowClass, "group flex items-center gap-2 p-0")}>
+      <div className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 p-4" onClick={onClick}>
+        <div className="flex shrink-0 items-center gap-2">
           <FileJson className="size-3.5 shrink-0 text-emerald-500/70" strokeWidth={1.4} />
-          <span className="font-mono text-[10px] text-zinc-500">{doc.id.slice(-8)}</span>
+          <span className="font-mono text-[13px] text-zinc-500">{doc.id.slice(-8)}</span>
         </div>
-        <div className="nql-document-preview">{preview || "{ }"}</div>
-        <span className="nql-document-date">{new Date(doc.createdAt).toLocaleDateString()}</span>
+        <div className="min-w-0 flex-1 truncate font-mono text-[13px] text-zinc-400">{preview || "{ }"}</div>
+        <span className="shrink-0 font-mono text-[13px] text-zinc-600">{new Date(doc.createdAt).toLocaleDateString()}</span>
       </div>
-      <div className="nql-document-actions">
-        <button type="button" onClick={onEdit} className="nql-document-action" title="Edit">
-          <Pencil className="size-3.5" strokeWidth={1.4} />
-        </button>
-        <button type="button" onClick={onDelete} className="nql-document-action nql-document-action-danger" title="Delete">
-          <Trash2 className="size-3.5" strokeWidth={1.4} />
-        </button>
+      <div className="flex shrink-0 items-center gap-1 pr-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
+        <AppButton variant="icon" onClick={onEdit} title="Edit" className="size-8 min-h-8 min-w-8 p-0" icon={<Pencil className="size-3.5" strokeWidth={1.4} />} />
+        <AppButton
+          variant="icon"
+          onClick={onDelete}
+          title="Delete"
+          className="size-8 min-h-8 min-w-8 p-0 text-zinc-500 hover:border-red-400/30 hover:text-red-400"
+          icon={<Trash2 className="size-3.5" strokeWidth={1.4} />}
+        />
       </div>
     </div>
   );
@@ -145,7 +167,6 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
   const [currentDoc, setCurrentDoc] = useState<DocumentInfo | null>(null);
 
   const [mongoUri, setMongoUri] = useState(() => getStoredMongoUri());
-  const [showUri, setShowUri] = useState(false);
   const [showConnectionPanel, setShowConnectionPanel] = useState(() => !hasStoredMongoUri());
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
   const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
@@ -561,15 +582,15 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
     }
 
     return (
-      <div className="nql-breadcrumb">
+      <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-white/10 pb-3">
         {crumbs.map((crumb, i) => (
-          <span key={i} className="nql-breadcrumb-item">
+          <span key={i} className="inline-flex items-center gap-2">
             {i > 0 && <ChevronRight className="size-3 text-zinc-700" strokeWidth={1.4} />}
             <button
               type="button"
               onClick={crumb.onClick}
               className={cn(
-                "font-mono text-[10px] uppercase tracking-[0.22em] transition-colors cursor-pointer",
+                "cursor-pointer font-mono text-[13px] uppercase tracking-[0.22em] transition-colors",
                 i === crumbs.length - 1 ? "text-white" : "text-zinc-500 hover:text-white"
               )}
             >
@@ -586,187 +607,141 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
   const canBrowse = connectionStatus === "connected" && hasUri;
 
   return (
-    <div className="nosql-client animate-scale-up">
-      <div className="nql-compact-bar">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="nql-logo-badge">
-            <Database className="size-4 text-emerald-400" strokeWidth={1.4} />
-          </div>
-          <div className="min-w-0">
-            <h1 className="truncate font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-400">
-              NoSQL Client
-            </h1>
-            <ConnectionStatusIndicator
-              prefix="nql"
-              status={connectionStatus}
-              message={connectionMessage}
-              hasConfig={hasUri}
-            />
-          </div>
-        </div>
-        <DbClientToolbarButtons
-          prefix="nql"
-          showConnectionPanel={showConnectionPanel}
-          onToggleConnection={() => {
-            playBeep("click");
-            setShowConnectionPanel((v) => !v);
-          }}
-          onBack={() => {
-            playBeep("click");
-            onBack();
-          }}
-        />
-      </div>
+    <ModuleShell variant="tool" maxWidth="none">
+      <ModuleHeaderBar
+        showBack={false}
+        leading={
+          <>
+            <div className="flex size-9 shrink-0 items-center justify-center border border-white/10 bg-white/[0.03]">
+              <Database className="size-4 text-emerald-400" strokeWidth={1.4} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate font-mono text-[13px] uppercase tracking-[0.22em] text-zinc-400">
+                NoSQL Client
+              </h1>
+              <div className="mt-0.5">
+                <ConnectionStatusIndicator
+                  status={connectionStatus}
+                  message={connectionMessage}
+                  hasConfig={hasUri}
+                />
+              </div>
+            </div>
+          </>
+        }
+        actions={
+          <DbClientToolbarButtons
+            showConnectionPanel={showConnectionPanel}
+            onToggleConnection={() => setShowConnectionPanel((v) => !v)}
+            onBack={onBack}
+          />
+        }
+      />
 
       {showConnectionPanel && (
-        <div className="nql-connection-panel animate-scale-up">
-          <div className="nql-connection-panel-header">
-            <Plug className="size-4 text-emerald-400" strokeWidth={1.4} />
-            <div>
-              <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-white">MongoDB Connection</h2>
-              <p className="text-[11px] text-zinc-500 mt-1">
-                Connect to your own MongoDB cluster (Atlas, local, etc.). This tool never uses the application&apos;s internal database.
-              </p>
-            </div>
-          </div>
-          <div className="nql-connection-input-row">
-            <input
-              type={showUri ? "text" : "password"}
-              value={mongoUri}
-              onChange={(e) => setMongoUri(e.target.value)}
-              placeholder="mongodb+srv://user:pass@cluster.mongodb.net/mydb"
-              className="nql-input nql-connection-input"
-              spellCheck={false}
-            />
-            <button
-              type="button"
-              onClick={() => setShowUri((v) => !v)}
-              className="nql-btn-ghost-sm"
-              title={showUri ? "Hide URI" : "Show URI"}
-            >
-              {showUri ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-            </button>
-          </div>
-          <div className="nql-connection-actions">
-            <button type="button" onClick={() => void testConnection()} disabled={connectionStatus === "testing"} className="nql-btn-ghost">
-              {connectionStatus === "testing" ? <Loader2 className="size-3.5 animate-spin" /> : "Test"}
-            </button>
-            <button type="button" onClick={() => void saveConnection()} disabled={connectionStatus === "testing" || !hasUri} className="nql-btn-primary">
-              Save & Connect
-            </button>
-            {hasUri && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMongoUri("");
-                  clearStoredMongoUri();
-                  setConnectionStatus("idle");
-                  setConnectionMessage("Connect to your own MongoDB cluster");
-                  setDatabases([]);
-                  setShowConnectionPanel(true);
-                }}
-                className="nql-btn-ghost"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
+        <ConnectionPanel
+          title="MongoDB Connection"
+          description="Connect to your own MongoDB cluster (Atlas, local, etc.). This tool never uses the application's internal database."
+          value={mongoUri}
+          onChange={setMongoUri}
+          placeholder="mongodb+srv://user:pass@cluster.mongodb.net/mydb"
+          connectionStatus={connectionStatus}
+          onTest={() => void testConnection()}
+          onSave={() => void saveConnection()}
+          onClear={() => {
+            setMongoUri("");
+            clearStoredMongoUri();
+            setConnectionStatus("idle");
+            setConnectionMessage("Connect to your own MongoDB cluster");
+            setDatabases([]);
+            setShowConnectionPanel(true);
+          }}
+          iconColor="text-emerald-400"
+        />
       )}
 
-      {bannerError && (
-        <div className="nql-error-banner">
-          <AlertCircle className="size-4 shrink-0 text-red-400" strokeWidth={1.4} />
-          <span className="flex-1 text-sm text-red-200">{bannerError}</span>
-          <button type="button" onClick={() => setBannerError(null)} className="nql-error-dismiss">
-            <X className="size-3.5" />
-          </button>
-        </div>
-      )}
+      <ErrorBanner message={bannerError} onDismiss={() => setBannerError(null)} />
 
       {renderBreadcrumb()}
 
-      <div className="nql-main-area">
+      <div className={toolMainClass}>
         {!canBrowse && !loading && view.screen === "databases" && (
-          <div className="nql-empty nql-empty-connection">
-            <Plug className="size-12 text-zinc-600" strokeWidth={1} />
-            <p className="text-sm text-zinc-400 max-w-md">
-              {hasUri
+          <EmptyState
+            icon={<Plug />}
+            message={
+              hasUri
                 ? "Could not connect with the saved URI. Open Connection, verify your string, and click Save & Connect."
-                : "Connect to your own MongoDB cluster first. Paste a connection string in the Connection panel — the app's internal database is not accessible here."}
-            </p>
-            <button type="button" onClick={() => setShowConnectionPanel(true)} className="nql-btn-primary">
-              {hasUri ? "Check Connection" : "Setup Connection"}
-            </button>
-          </div>
+                : "Connect to your own MongoDB cluster first. Paste a connection string in the Connection panel — the app's internal database is not accessible here."
+            }
+            action={
+              <AppButton variant="primary" onClick={() => setShowConnectionPanel(true)}>
+                {hasUri ? "Check Connection" : "Setup Connection"}
+              </AppButton>
+            }
+          />
         )}
 
         {view.screen === "databases" && canBrowse && (
-          <div className="nql-screen animate-scale-up">
-            <div className="nql-screen-header">
-              <h2 className="font-mono text-xs uppercase tracking-[0.28em] text-white">Databases</h2>
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-[10px] text-zinc-600">
-                  {databases.length} database{databases.length !== 1 ? "s" : ""}
-                </span>
-                <button type="button" onClick={() => { playBeep("click"); void fetchDatabases(); }} className="nql-toolbar-btn-sm">
-                  <RefreshCw className="size-3.5" strokeWidth={1.5} />
-                </button>
-                <button type="button" onClick={() => { playBeep("click"); setShowNewDb(!showNewDb); }} className="nql-toolbar-btn-sm">
-                  <Plus className="size-3.5" strokeWidth={1.5} />
-                  New
-                </button>
-              </div>
-            </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <SectionHeader
+              title="Databases"
+              count={databases.length}
+              actions={
+                <div className="flex items-center gap-2">
+                  <AppButton variant="icon" onClick={() => { playBeep("click"); void fetchDatabases(); }} icon={<RefreshCw className="size-3.5" strokeWidth={1.5} />} />
+                  <AppButton variant="ghostSm" onClick={() => { playBeep("click"); setShowNewDb(!showNewDb); }} icon={<Plus className="size-3.5" strokeWidth={1.5} />}>
+                    New
+                  </AppButton>
+                </div>
+              }
+              borderless
+              className="border-b border-white/10 px-4 py-3"
+            />
 
             {showNewDb && (
-              <div className="nql-create-form">
-                <input
+              <div className={cn(panelClass, "mx-4 mt-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-end")}>
+                <AppInput
                   type="text"
                   value={newDbName}
                   onChange={(e) => setNewDbName(e.target.value)}
                   placeholder="my-database"
-                  className="nql-input"
+                  inputSize="sm"
+                  className="min-w-0 flex-1"
                   autoFocus
                   onKeyDown={(e) => { if (e.key === "Enter") void createDatabase(); }}
                 />
-                <div className="nql-create-actions">
-                  <button type="button" onClick={() => void createDatabase()} disabled={submitting} className="nql-btn-primary">
-                    {submitting ? <Loader2 className="size-3.5 animate-spin" /> : "Create"}
-                  </button>
-                  <button type="button" onClick={() => { setShowNewDb(false); setNewDbName(""); }} className="nql-btn-ghost">
+                <div className="flex items-center gap-2">
+                  <AppButton variant="primary" onClick={() => void createDatabase()} disabled={submitting} loading={submitting}>
+                    Create
+                  </AppButton>
+                  <AppButton variant="ghost" onClick={() => { setShowNewDb(false); setNewDbName(""); }}>
                     Cancel
-                  </button>
+                  </AppButton>
                 </div>
               </div>
             )}
 
             {loading ? (
-              <div className="nql-loading">
-                <Loader2 className="size-6 animate-spin text-zinc-500" strokeWidth={1.4} />
-              </div>
+              <LoadingSpinner className="py-16" />
             ) : databases.length === 0 ? (
-              <div className="nql-empty">
-                <Database className="size-10 text-white/30" strokeWidth={1} />
-                <p className="text-sm text-zinc-500">No databases found on this cluster.</p>
-              </div>
+              <EmptyState icon={<Database />} message="No databases found on this cluster." />
             ) : (
-              <div className="nql-grid">
+              <div className={cn(toolScrollClass, "grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3")}>
                 {databases.map((db) => (
                   <div
                     key={db.id}
-                    className="nql-card group"
+                    className={cn(interactiveCardClass, "group flex cursor-pointer items-start gap-3")}
                     onClick={() => {
                       playBeep("click");
                       navigate({ screen: "collections", dbName: db.name });
                     }}
                   >
-                    <div className="nql-card-icon">
-                      <Database className="size-5 text-emerald-400/70 group-hover:text-emerald-300 transition-colors" strokeWidth={1.3} />
+                    <div className="flex size-10 shrink-0 items-center justify-center border border-white/10 bg-black/40">
+                      <Database className="size-5 text-emerald-400/70 transition-colors group-hover:text-emerald-300" strokeWidth={1.3} />
                     </div>
-                    <div className="nql-card-body">
-                      <span className="nql-card-name">{db.name}</span>
-                      <div className="nql-card-meta">
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate font-mono text-sm text-white">{db.name}</span>
+                      <div className="mt-1 flex flex-wrap items-center gap-1 font-mono text-[13px] text-zinc-600">
                         <span>{db.collectionCount} collection{db.collectionCount !== 1 ? "s" : ""}</span>
                         <span className="text-zinc-700">·</span>
                         <span>{db.documentCount.toLocaleString()} doc{db.documentCount !== 1 ? "s" : ""}</span>
@@ -780,68 +755,63 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
         )}
 
         {view.screen === "collections" && (
-          <div className="nql-screen animate-scale-up">
-            <div className="nql-screen-header">
-              <h2 className="font-mono text-xs uppercase tracking-[0.28em] text-white">Collections</h2>
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-[10px] text-zinc-600">
-                  {collections.length} collection{collections.length !== 1 ? "s" : ""}
-                </span>
-                <button type="button" onClick={() => { playBeep("click"); setShowNewCol(!showNewCol); }} className="nql-toolbar-btn-sm">
-                  <Plus className="size-3.5" strokeWidth={1.5} />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <SectionHeader
+              title="Collections"
+              count={collections.length}
+              actions={
+                <AppButton variant="ghostSm" onClick={() => { playBeep("click"); setShowNewCol(!showNewCol); }} icon={<Plus className="size-3.5" strokeWidth={1.5} />}>
                   New
-                </button>
-              </div>
-            </div>
+                </AppButton>
+              }
+              borderless
+              className="border-b border-white/10 px-4 py-3"
+            />
 
             {showNewCol && (
-              <div className="nql-create-form">
-                <input
+              <div className={cn(panelClass, "mx-4 mt-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-end")}>
+                <AppInput
                   type="text"
                   value={newColName}
                   onChange={(e) => setNewColName(e.target.value)}
                   placeholder="users"
-                  className="nql-input"
+                  inputSize="sm"
+                  className="min-w-0 flex-1"
                   autoFocus
                   onKeyDown={(e) => { if (e.key === "Enter") void createCollection(); }}
                 />
-                <div className="nql-create-actions">
-                  <button type="button" onClick={() => void createCollection()} disabled={submitting} className="nql-btn-primary">
-                    {submitting ? <Loader2 className="size-3.5 animate-spin" /> : "Create"}
-                  </button>
-                  <button type="button" onClick={() => { setShowNewCol(false); setNewColName(""); }} className="nql-btn-ghost">
+                <div className="flex items-center gap-2">
+                  <AppButton variant="primary" onClick={() => void createCollection()} disabled={submitting} loading={submitting}>
+                    Create
+                  </AppButton>
+                  <AppButton variant="ghost" onClick={() => { setShowNewCol(false); setNewColName(""); }}>
                     Cancel
-                  </button>
+                  </AppButton>
                 </div>
               </div>
             )}
 
             {loading ? (
-              <div className="nql-loading">
-                <Loader2 className="size-6 animate-spin text-zinc-500" strokeWidth={1.4} />
-              </div>
+              <LoadingSpinner className="py-16" />
             ) : collections.length === 0 ? (
-              <div className="nql-empty">
-                <FolderOpen className="size-10 text-white/30" strokeWidth={1} />
-                <p className="text-sm text-zinc-500">No collections in this database.</p>
-              </div>
+              <EmptyState icon={<FolderOpen />} message="No collections in this database." />
             ) : (
-              <div className="nql-grid">
+              <div className={cn(toolScrollClass, "grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3")}>
                 {collections.map((col) => (
                   <div
                     key={col.id}
-                    className="nql-card group"
+                    className={cn(interactiveCardClass, "group flex cursor-pointer items-start gap-3")}
                     onClick={() => {
                       playBeep("click");
                       navigate({ screen: "documents", dbName: view.dbName, colName: col.name });
                     }}
                   >
-                    <div className="nql-card-icon">
-                      <FolderOpen className="size-5 text-amber-400/70 group-hover:text-amber-300 transition-colors" strokeWidth={1.3} />
+                    <div className="flex size-10 shrink-0 items-center justify-center border border-white/10 bg-black/40">
+                      <FolderOpen className="size-5 text-amber-400/70 transition-colors group-hover:text-amber-300" strokeWidth={1.3} />
                     </div>
-                    <div className="nql-card-body">
-                      <span className="nql-card-name">{col.name}</span>
-                      <div className="nql-card-meta">
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate font-mono text-sm text-white">{col.name}</span>
+                      <div className="mt-1 font-mono text-[13px] text-zinc-600">
                         <span>{col.documentCount.toLocaleString()} doc{col.documentCount !== 1 ? "s" : ""}</span>
                       </div>
                     </div>
@@ -853,106 +823,93 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
         )}
 
         {view.screen === "documents" && (
-          <div className="nql-screen animate-scale-up">
-            <div className="nql-screen-header">
-              <h2 className="font-mono text-xs uppercase tracking-[0.28em] text-white">Documents</h2>
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-[10px] text-zinc-600">
-                  {docTotal.toLocaleString()} doc{docTotal !== 1 ? "s" : ""}
-                </span>
-                <button
-                  type="button"
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <SectionHeader
+              title="Documents"
+              meta={<span className={metaTextClass}>{docTotal.toLocaleString()} doc{docTotal !== 1 ? "s" : ""}</span>}
+              actions={
+                <AppButton
+                  variant="icon"
                   onClick={() => {
                     playBeep("click");
                     fetchDocuments(view.dbName, view.colName, docPage, filterKey, filterValue);
                   }}
-                  className="nql-toolbar-btn-sm"
-                >
-                  <RefreshCw className="size-3.5" strokeWidth={1.5} />
-                </button>
-              </div>
-            </div>
+                  icon={<RefreshCw className="size-3.5" strokeWidth={1.5} />}
+                />
+              }
+              borderless
+              className="border-b border-white/10 px-4 py-3"
+            />
 
-            <div className="nql-filter-bar">
+            <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
               <Search className="size-3.5 shrink-0 text-zinc-600" strokeWidth={1.4} />
-              <input
+              <AppInput
                 type="text"
                 value={filterKey}
                 onChange={(e) => setFilterKey(e.target.value)}
                 placeholder="field"
-                className="nql-filter-input"
+                inputSize="sm"
+                className="w-28"
               />
-              <span className="text-zinc-700 font-mono text-xs">:</span>
-              <input
+              <span className="font-mono text-sm text-zinc-700">:</span>
+              <AppInput
                 type="text"
                 value={filterValue}
                 onChange={(e) => setFilterValue(e.target.value)}
                 placeholder="value"
-                className="nql-filter-input"
+                inputSize="sm"
+                className="min-w-0 flex-1"
                 onKeyDown={(e) => { if (e.key === "Enter") applyFilter(); }}
               />
-              <button type="button" onClick={applyFilter} className="nql-btn-sm">Filter</button>
+              <AppButton variant="ghostSm" onClick={applyFilter}>Filter</AppButton>
               {(filterKey || filterValue) && (
-                <button type="button" onClick={clearFilter} className="nql-btn-ghost-sm">
-                  <X className="size-3" strokeWidth={1.4} />
-                </button>
+                <AppButton variant="ghostSm" onClick={clearFilter} icon={<X className="size-3" strokeWidth={1.4} />} silent />
               )}
             </div>
 
-            <div className="nql-documents-layout">
-              <div className="nql-editor-section">
-                <div className="nql-editor-header">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
-                    {isEditing ? "Edit Document" : "Insert Document"}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button type="button" onClick={formatJson} className="nql-btn-ghost-sm">
-                      Format
-                    </button>
-                    {isEditing && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsEditing(false);
-                          setCurrentDoc(null);
-                          setJsonValue("{\n  \n}");
-                          setJsonError(null);
-                        }}
-                        className="nql-btn-ghost-sm"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </div>
+            <ToolSplitGrid className="min-h-0 flex-1 p-4 lg:overflow-hidden">
+              <ToolPanel>
+                <SectionHeader
+                  title={isEditing ? "Edit Document" : "Insert Document"}
+                  borderless
+                  actions={
+                    <div className="flex items-center gap-2">
+                      <AppButton variant="ghostSm" onClick={formatJson}>Format</AppButton>
+                      {isEditing && (
+                        <AppButton
+                          variant="ghostSm"
+                          onClick={() => {
+                            setIsEditing(false);
+                            setCurrentDoc(null);
+                            setJsonValue("{\n  \n}");
+                            setJsonError(null);
+                          }}
+                        >
+                          Cancel
+                        </AppButton>
+                      )}
+                    </div>
+                  }
+                  className="mb-3"
+                />
                 <JsonEditor
                   value={jsonValue}
                   onChange={(v) => { setJsonValue(v); setJsonError(null); }}
                   error={jsonError}
                   inputRef={jsonInputRef}
                 />
-                <button
-                  type="button"
-                  onClick={() => void saveDocument()}
-                  disabled={submitting}
-                  className="nql-btn-primary mt-3"
-                >
-                  {submitting ? <Loader2 className="size-3.5 animate-spin" /> : isEditing ? "Update" : "Insert"}
-                </button>
-              </div>
+                <AppButton variant="primary" onClick={() => void saveDocument()} disabled={submitting} loading={submitting} className="mt-3">
+                  {isEditing ? "Update" : "Insert"}
+                </AppButton>
+              </ToolPanel>
 
-              <div className="nql-documents-panel">
+              <ToolPanel>
                 {loading ? (
-                  <div className="nql-loading">
-                    <Loader2 className="size-6 animate-spin text-zinc-500" strokeWidth={1.4} />
-                  </div>
+                  <LoadingSpinner className="py-16" />
                 ) : documents.length === 0 ? (
-                  <div className="nql-empty nql-empty-compact">
-                    <FileJson className="size-8 text-white/20" strokeWidth={1} />
-                    <p className="text-xs text-zinc-500">No documents yet</p>
-                  </div>
+                  <EmptyState icon={<FileJson />} message="No documents yet" compact />
                 ) : (
-                  <div className="nql-documents-list">
+                  <div className={cn(toolScrollClass, "flex flex-col gap-2")}>
                     {documents.map((doc) => (
                       <DocumentRow
                         key={doc.id}
@@ -966,44 +923,23 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
                         }
                       />
                     ))}
-                    {totalPages > 1 && (
-                      <div className="nql-pagination">
-                        <span className="font-mono text-[10px] text-zinc-500">
-                          Page {docPage} of {totalPages}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => fetchDocuments(view.dbName, view.colName, Math.max(1, docPage - 1), filterKey, filterValue)}
-                            disabled={docPage === 1}
-                            className="nql-pagination-btn"
-                          >
-                            Prev
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => fetchDocuments(view.dbName, view.colName, Math.min(totalPages, docPage + 1), filterKey, filterValue)}
-                            disabled={docPage === totalPages}
-                            className="nql-pagination-btn"
-                          >
-                            Next
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    <Pagination
+                      page={docPage}
+                      totalPages={totalPages}
+                      onChange={(p) => fetchDocuments(view.dbName, view.colName, p, filterKey, filterValue)}
+                      className="mt-2"
+                    />
                   </div>
                 )}
-              </div>
-            </div>
+              </ToolPanel>
+            </ToolSplitGrid>
           </div>
         )}
 
         {view.screen === "document" && (
-          <div className="nql-screen animate-scale-up">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {loading ? (
-              <div className="nql-loading">
-                <Loader2 className="size-6 animate-spin text-zinc-500" strokeWidth={1.4} />
-              </div>
+              <LoadingSpinner className="py-16" />
             ) : currentDoc ? (
               <SingleDocumentView
                 doc={currentDoc}
@@ -1031,14 +967,12 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
                 playBeep={playBeep}
               />
             ) : (
-              <div className="nql-empty">
-                <p className="text-sm text-zinc-500">Document not found</p>
-              </div>
+              <EmptyState message="Document not found" />
             )}
           </div>
         )}
       </div>
-    </div>
+    </ModuleShell>
   );
 }
 
@@ -1069,60 +1003,51 @@ function SingleDocumentView({
   onDelete: () => void;
   playBeep: (type: "success" | "error" | "click") => void;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const copyJson = () => {
-    navigator.clipboard.writeText(JSON.stringify(doc.data, null, 2)).then(() => {
-      playBeep("success");
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
   return (
-    <div className="nql-doc-view">
-      <div className="nql-doc-view-header">
-        <div className="flex items-center gap-3">
-          <FileJson className="size-5 text-emerald-400/80" strokeWidth={1.3} />
-          <div>
-            <div className="font-mono text-[10px] text-zinc-500 uppercase tracking-[0.22em]">Document</div>
-            <div className="font-mono text-[11px] text-zinc-400 mt-1 break-all">{doc.id}</div>
+    <ToolPanel className="m-4">
+      <SectionHeader
+        title="Document"
+        meta={
+          <div className="mt-1 break-all font-mono text-[13px] text-zinc-400">{doc.id}</div>
+        }
+        icon={<FileJson className="size-5 text-emerald-400/80" strokeWidth={1.3} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <CopyButton
+              text={() => JSON.stringify(doc.data, null, 2)}
+              onCopied={() => playBeep("success")}
+            />
+            {!isEditing && (
+              <AppButton variant="ghostSm" onClick={onEdit} title="Edit" icon={<Pencil className="size-3.5" strokeWidth={1.4} />} />
+            )}
+            <AppButton variant="ghostSm" onClick={onDelete} title="Delete" icon={<Trash2 className="size-3.5" strokeWidth={1.4} />} />
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={copyJson} className="nql-btn-ghost-sm" title="Copy JSON">
-            {copied ? <Check className="size-3.5 text-emerald-400" strokeWidth={1.4} /> : <Copy className="size-3.5" strokeWidth={1.4} />}
-          </button>
-          {!isEditing && (
-            <button type="button" onClick={onEdit} className="nql-btn-ghost-sm" title="Edit">
-              <Pencil className="size-3.5" strokeWidth={1.4} />
-            </button>
-          )}
-          <button type="button" onClick={onDelete} className="nql-btn-ghost-sm" title="Delete">
-            <Trash2 className="size-3.5" strokeWidth={1.4} />
-          </button>
-        </div>
-      </div>
-      <div className="nql-doc-meta">
-        <span>Created: {new Date(doc.createdAt).toLocaleString()}</span>
-      </div>
+        }
+        borderless
+        className="mb-3"
+      />
+      <p className="mb-4 font-mono text-[13px] text-zinc-600">Created: {new Date(doc.createdAt).toLocaleString()}</p>
       {isEditing ? (
-        <div className="nql-editor-section mt-4">
-          <div className="nql-editor-header">
-            <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">Editing</span>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={onFormat} className="nql-btn-ghost-sm">Format</button>
-              <button type="button" onClick={onCancelEdit} className="nql-btn-ghost-sm">Cancel</button>
-            </div>
-          </div>
+        <>
+          <SectionHeader
+            title="Editing"
+            borderless
+            actions={
+              <div className="flex items-center gap-2">
+                <AppButton variant="ghostSm" onClick={onFormat}>Format</AppButton>
+                <AppButton variant="ghostSm" onClick={onCancelEdit}>Cancel</AppButton>
+              </div>
+            }
+            className="mb-3"
+          />
           <JsonEditor value={jsonValue} onChange={onJsonChange} error={jsonError} />
-          <button type="button" onClick={onSave} disabled={submitting} className="nql-btn-primary mt-3">
-            {submitting ? <Loader2 className="size-3.5 animate-spin" /> : "Save Changes"}
-          </button>
-        </div>
+          <AppButton variant="primary" onClick={onSave} disabled={submitting} loading={submitting} className="mt-3">
+            Save Changes
+          </AppButton>
+        </>
       ) : (
-        <pre className="nql-json-pre">{JSON.stringify(doc.data, null, 2)}</pre>
+        <pre className={preOutputClass}>{JSON.stringify(doc.data, null, 2)}</pre>
       )}
-    </div>
+    </ToolPanel>
   );
 }

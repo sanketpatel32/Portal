@@ -10,18 +10,36 @@ import {
   Trash2,
   X,
   Clock,
-  Copy,
-  Check,
   Download,
-  Eye,
-  EyeOff,
-  AlertCircle,
   Plug,
   Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConnectionStatusIndicator, type ConnectionStatus } from "@/lib/connection-status";
 import { DbClientToolbarButtons } from "@/lib/db-client-toolbar";
+import { ConnectionPanel } from "./shared/ConnectionPanel";
+import { ErrorBanner } from "./ui/ErrorBanner";
+import { EmptyState } from "./ui/EmptyState";
+import { CopyButton } from "./ui/CopyButton";
+import { ModuleShell } from "./ui/ModuleShell";
+import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
+import { TabBar } from "./ui/TabBar";
+import { AppButton } from "./ui/AppButton";
+import { AppInput } from "./ui/AppInput";
+import { AppTextArea } from "./ui/AppTextArea";
+import { SectionHeader } from "./ui/SectionHeader";
+import {
+  dataTableClass,
+  dataTdClass,
+  dataThClass,
+  interactiveCardClass,
+  interactiveRowClass,
+  metaTextClass,
+  preOutputClass,
+  tableScrollClass,
+  toolMainClass,
+  toolScrollClass,
+} from "@/lib/ui-classes";
 import { fetchJsonResource } from "@/lib/fetch-json-resource";
 import { runConnectionTest } from "@/lib/test-db-connection";
 import {
@@ -76,26 +94,6 @@ function formatCellValue(value: unknown): string {
 }
 
 function ResultsTable({ result }: { result: QueryResult }) {
-  const [copied, setCopied] = useState(false);
-
-  const copyAsCsv = () => {
-    const header = result.columns.join(",");
-    const rows = result.rows.map((row) =>
-      result.columns
-        .map((col) => {
-          const val = formatCellValue(row[col]);
-          return val.includes(",") || val.includes('"') || val.includes("\n")
-            ? `"${val.replace(/"/g, '""')}"`
-            : val;
-        })
-        .join(",")
-    );
-    navigator.clipboard.writeText([header, ...rows].join("\n")).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
   const downloadAsJson = () => {
     const blob = new Blob([JSON.stringify(result.rows, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -108,34 +106,49 @@ function ResultsTable({ result }: { result: QueryResult }) {
 
   if (result.rows.length === 0) {
     return (
-      <div className="sql-empty-small">
+      <div className="flex flex-col items-center justify-center p-8 text-center">
         <p className="text-sm text-zinc-500">Query returned 0 rows</p>
       </div>
     );
   }
 
   return (
-    <div className="sql-results-wrap">
-      <div className="sql-results-toolbar">
-        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+    <div className="flex min-h-0 flex-col border-t border-white/10">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-2.5">
+        <span className="font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-500">
           {result.database && <span className="text-sky-400/80">{result.database} · </span>}
           {result.rowCount} row{result.rowCount !== 1 ? "s" : ""} · {result.executionTimeMs.toFixed(1)}ms
         </span>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={copyAsCsv} className="sql-btn-icon" title="Copy as CSV">
-            {copied ? <Check className="size-3.5 text-emerald-400" strokeWidth={1.4} /> : <Copy className="size-3.5" strokeWidth={1.4} />}
-          </button>
-          <button type="button" onClick={downloadAsJson} className="sql-btn-icon" title="Download JSON">
+          <CopyButton
+            text={() => {
+              const header = result.columns.join(",");
+              const rows = result.rows.map((row) =>
+                result.columns
+                  .map((col) => {
+                    const val = formatCellValue(row[col]);
+                    return val.includes(",") || val.includes('"') || val.includes("\n")
+                      ? `"${val.replace(/"/g, '""')}"`
+                      : val;
+                  })
+                  .join(",")
+              );
+              return [header, ...rows].join("\n");
+            }}
+          />
+          <AppButton variant="icon" onClick={downloadAsJson} title="Download JSON" silent>
             <Download className="size-3.5" strokeWidth={1.4} />
-          </button>
+          </AppButton>
         </div>
       </div>
-      <div className="sql-results-scroll">
-        <table className="sql-results-table">
+      <div className={tableScrollClass}>
+        <table className={dataTableClass}>
           <thead>
             <tr>
               {result.columns.map((col) => (
-                <th key={col}>{col}</th>
+                <th key={col} className={dataThClass}>
+                  {col}
+                </th>
               ))}
             </tr>
           </thead>
@@ -143,7 +156,7 @@ function ResultsTable({ result }: { result: QueryResult }) {
             {result.rows.map((row, i) => (
               <tr key={i}>
                 {result.columns.map((col) => (
-                  <td key={col} title={formatCellValue(row[col])}>
+                  <td key={col} className={dataTdClass} title={formatCellValue(row[col])}>
                     {formatCellValue(row[col])}
                   </td>
                 ))}
@@ -165,7 +178,6 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
   const [isExecuting, setIsExecuting] = useState(false);
 
   const [connectionString, setConnectionString] = useState(() => getStoredSqlConnection());
-  const [showConnectionString, setShowConnectionString] = useState(false);
   const [showConnectionPanel, setShowConnectionPanel] = useState(() => !hasStoredSqlConnection());
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
   const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
@@ -415,237 +427,195 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
     playBeep("click");
   };
 
-  const tabs: Array<{ id: ViewState["screen"]; label: string }> = [
+  const tabs: Array<{ id: ViewState["screen"]; label: string; count?: number }> = [
     { id: "editor", label: "Editor" },
-    { id: "history", label: "History" },
-    { id: "saved", label: "Saved" },
+    { id: "history", label: "History", count: history.length || undefined },
+    { id: "saved", label: "Saved", count: savedQueries.length || undefined },
   ];
 
   const hasConnection = Boolean(connectionString.trim());
   const canRun = connectionStatus === "connected" && hasConnection;
 
   return (
-    <div className="sql-client animate-scale-up">
-      <div className="sql-compact-bar">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="sql-logo-badge">
-            <Database className="size-4 text-sky-400" strokeWidth={1.4} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="truncate font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-400">
-                SQL Client
-              </h1>
-              <span className="sql-readonly-badge">
-                <Shield className="size-3" strokeWidth={1.4} />
-                Read-only
-              </span>
+    <ModuleShell variant="tool" maxWidth="none">
+      <ModuleHeaderBar
+        showBack={false}
+        leading={
+          <>
+            <div className="flex size-9 shrink-0 items-center justify-center border border-white/10 bg-white/[0.03]">
+              <Database className="size-4 text-sky-400" strokeWidth={1.4} />
             </div>
-            <p className="font-mono text-[8px] uppercase tracking-[0.14em] text-zinc-600 mt-0.5 truncate">
-              PostgreSQL · MySQL · SQLite
-            </p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <ConnectionStatusIndicator
-                prefix="sql"
-                status={connectionStatus}
-                message={connectionMessage}
-                hasConfig={hasConnection}
-              />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate font-mono text-[13px] uppercase tracking-[0.22em] text-zinc-400">
+                  SQL Client
+                </h1>
+                <span className="inline-flex items-center gap-1 border border-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-zinc-500">
+                  <Shield className="size-3" strokeWidth={1.4} />
+                  Read-only
+                </span>
+              </div>
+              <p className="mt-0.5 truncate font-mono text-[13px] uppercase tracking-[0.14em] text-zinc-600">
+                PostgreSQL · MySQL · SQLite
+              </p>
+              <div className="mt-0.5 flex items-center gap-2">
+                <ConnectionStatusIndicator
+                  status={connectionStatus}
+                  message={connectionMessage}
+                  hasConfig={hasConnection}
+                />
+              </div>
             </div>
-          </div>
-        </div>
-        <DbClientToolbarButtons
-          prefix="sql"
-          showConnectionPanel={showConnectionPanel}
-          onToggleConnection={() => {
-            playBeep("click");
-            setShowConnectionPanel((v) => !v);
-          }}
-          onBack={() => {
-            playBeep("click");
-            onBack();
-          }}
-        />
-      </div>
+          </>
+        }
+        actions={
+          <DbClientToolbarButtons
+            showConnectionPanel={showConnectionPanel}
+            onToggleConnection={() => setShowConnectionPanel((v) => !v)}
+            onBack={onBack}
+          />
+        }
+      />
 
       {showConnectionPanel && (
-        <div className="sql-connection-panel animate-scale-up">
-          <div className="sql-connection-panel-header">
-            <Plug className="size-4 text-sky-400" strokeWidth={1.4} />
-            <div>
-              <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-white">SQL database connection</h2>
-              <p className="text-[11px] text-zinc-500 mt-1">
-                For PostgreSQL, MySQL, or SQLite only. MongoDB belongs in the NoSQL Client. Read-only SELECT queries — no writes or DDL.
-              </p>
-            </div>
-          </div>
-          <div className="sql-connection-input-row">
-            <input
-              type={showConnectionString ? "text" : "password"}
-              value={connectionString}
-              onChange={(e) => setConnectionString(e.target.value)}
-              placeholder="postgres://user:pass@localhost:5432/mydb"
-              className="sql-input sql-connection-input"
-              spellCheck={false}
-            />
-            <button type="button" onClick={() => setShowConnectionString((v) => !v)} className="sql-btn-ghost-sm">
-              {showConnectionString ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-            </button>
-          </div>
-          <div className="sql-connection-actions">
-            <button type="button" onClick={() => void testConnection()} disabled={connectionStatus === "testing"} className="sql-btn-ghost">
-              {connectionStatus === "testing" ? <Loader2 className="size-3.5 animate-spin" /> : "Test"}
-            </button>
-            <button type="button" onClick={() => void saveConnection()} disabled={connectionStatus === "testing" || !hasConnection} className="sql-btn-primary">
-              Save & Connect
-            </button>
-            {hasConnection && (
-              <button
-                type="button"
-                onClick={() => {
-                  setConnectionString("");
-                  clearStoredSqlConnection();
-                  setConnectionStatus("idle");
-                  setConnectionDialect(null);
-                  setConnectionMessage("Connect to PostgreSQL, MySQL, or SQLite");
-                  setSchemaData([]);
-                  setShowConnectionPanel(true);
-                }}
-                className="sql-btn-ghost"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
+        <ConnectionPanel
+          title="SQL database connection"
+          description="For PostgreSQL, MySQL, or SQLite only. MongoDB belongs in the NoSQL Client. Read-only SELECT queries — no writes or DDL."
+          value={connectionString}
+          onChange={setConnectionString}
+          placeholder="postgres://user:pass@localhost:5432/mydb"
+          connectionStatus={connectionStatus}
+          onTest={() => void testConnection()}
+          onSave={() => void saveConnection()}
+          onClear={() => {
+            setConnectionString("");
+            clearStoredSqlConnection();
+            setConnectionStatus("idle");
+            setConnectionDialect(null);
+            setConnectionMessage("Connect to PostgreSQL, MySQL, or SQLite");
+            setSchemaData([]);
+            setShowConnectionPanel(true);
+          }}
+          iconColor="text-sky-400"
+        />
       )}
 
-      {bannerError && (
-        <div className="sql-error-banner">
-          <AlertCircle className="size-4 shrink-0 text-red-400" strokeWidth={1.4} />
-          <span className="flex-1 text-sm text-red-200">{bannerError}</span>
-          <button type="button" onClick={() => { setBannerError(null); setError(null); }} className="sql-error-dismiss">
-            <X className="size-3.5" />
-          </button>
-        </div>
-      )}
+      <ErrorBanner
+        message={bannerError}
+        onDismiss={() => { setBannerError(null); setError(null); }}
+      />
 
-      <div className="sql-tabs">
-        {tabs.map((tab, i) => (
-          <span key={tab.id} className="flex items-center gap-6">
-            {i > 0 && <span className="text-zinc-800 text-[10px] select-none">&middot;</span>}
-            <button
-              onClick={() => { playBeep("click"); setView({ screen: tab.id }); }}
-              className={cn(
-                "font-mono text-xs tracking-[0.3em] uppercase transition-all",
-                view.screen === tab.id ? "text-white font-medium scale-105" : "text-zinc-600 hover:text-zinc-400"
-              )}
-            >
-              {tab.label}
-              {tab.id === "history" && history.length > 0 && (
-                <span className="ml-2 text-[9px] text-zinc-600">({history.length})</span>
-              )}
-              {tab.id === "saved" && savedQueries.length > 0 && (
-                <span className="ml-2 text-[9px] text-zinc-600">({savedQueries.length})</span>
-              )}
-            </button>
-          </span>
-        ))}
-      </div>
+      <TabBar
+        tabs={tabs}
+        active={view.screen}
+        onChange={(id) => setView({ screen: id as ViewState["screen"] })}
+        variant="dot"
+      />
 
-      <div className="sql-main-area">
+      <div className={toolMainClass}>
         {view.screen === "editor" && !canRun && (
-          <div className="sql-empty sql-empty-connection">
-            <Plug className="size-12 text-zinc-600" strokeWidth={1} />
-            <p className="text-sm text-zinc-400 max-w-md text-center">
-              {hasConnection
+          <EmptyState
+            icon={<Plug />}
+            message={
+              hasConnection
                 ? "Could not connect. Check your connection string and click Save & Connect."
-                : "Connect PostgreSQL, MySQL, or SQLite to run read-only SELECT queries. Use NoSQL Client for MongoDB."}
-            </p>
-            <button type="button" onClick={() => setShowConnectionPanel(true)} className="sql-btn-primary">
-              {hasConnection ? "Fix connection" : "Setup connection"}
-            </button>
-          </div>
+                : "Connect PostgreSQL, MySQL, or SQLite to run read-only SELECT queries. Use NoSQL Client for MongoDB."
+            }
+            action={
+              <AppButton variant="primary" onClick={() => setShowConnectionPanel(true)}>
+                {hasConnection ? "Fix connection" : "Setup connection"}
+              </AppButton>
+            }
+          />
         )}
 
         {view.screen === "editor" && canRun && (
-          <div className="sql-screen animate-scale-up">
-            <div className="sql-editor-toolbar">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => void executeQuery()} disabled={isExecuting} className="sql-btn-exec">
-                  {isExecuting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" strokeWidth={1.5} />}
+                <AppButton
+                  variant="primary"
+                  onClick={() => void executeQuery()}
+                  disabled={isExecuting}
+                  loading={isExecuting}
+                  silent
+                  icon={!isExecuting ? <Play className="size-4" strokeWidth={1.5} /> : undefined}
+                >
                   {isExecuting ? "Running..." : "Run"}
-                </button>
-                <span className="font-mono text-[9px] text-zinc-700 uppercase tracking-[0.18em]">Ctrl+Enter</span>
+                </AppButton>
+                <span className={metaTextClass}>Ctrl+Enter</span>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
+                <AppButton
+                  variant="ghostSm"
+                  className="hidden lg:inline-flex"
                   onClick={() => {
                     playBeep("click");
                     setShowSchema(!showSchema);
                     if (!showSchema) void fetchSchema();
                   }}
-                  className="sql-btn-ghost"
+                  icon={<RefreshCw className={cn("size-3.5", schemaLoading && "animate-spin")} strokeWidth={1.4} />}
                 >
-                  <RefreshCw className={cn("size-3.5", schemaLoading && "animate-spin")} strokeWidth={1.4} />
                   Schema
-                </button>
-                <button
-                  type="button"
+                </AppButton>
+                <AppButton
+                  variant="ghostSm"
                   onClick={() => { playBeep("click"); setShowSaveDialog(!showSaveDialog); }}
-                  className="sql-btn-ghost"
                   disabled={!query.trim()}
+                  icon={<Save className="size-3.5" strokeWidth={1.4} />}
                 >
-                  <Save className="size-3.5" strokeWidth={1.4} />
                   Save
-                </button>
+                </AppButton>
               </div>
             </div>
 
             {showSaveDialog && (
-              <div className="sql-save-dialog">
-                <input
+              <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+                <AppInput
                   type="text"
                   value={saveName}
                   onChange={(e) => setSaveName(e.target.value)}
                   placeholder="Query name..."
-                  className="sql-input"
+                  inputSize="sm"
+                  className="min-w-0 flex-1"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") saveCurrentQuery();
                     if (e.key === "Escape") { setShowSaveDialog(false); setSaveName(""); }
                   }}
                 />
-                <button type="button" onClick={saveCurrentQuery} className="sql-btn-primary" disabled={!saveName.trim()}>
+                <AppButton variant="primary" onClick={saveCurrentQuery} disabled={!saveName.trim()}>
                   Save
-                </button>
-                <button type="button" onClick={() => { setShowSaveDialog(false); setSaveName(""); }} className="sql-btn-ghost-sm">
-                  <X className="size-3" strokeWidth={1.4} />
-                </button>
+                </AppButton>
+                <AppButton
+                  variant="ghostSm"
+                  onClick={() => { setShowSaveDialog(false); setSaveName(""); }}
+                  icon={<X className="size-3" strokeWidth={1.4} />}
+                  silent
+                />
               </div>
             )}
 
-            <div className="sql-editor-body">
+            <div className="flex min-h-0 flex-1 overflow-hidden">
               {showSchema && (
-                <div className="sql-schema-sidebar">
-                  <div className="sql-schema-header">
+                <div className="hidden lg:flex w-56 shrink-0 flex-col border-r border-white/10">
+                  <div className="flex items-start justify-between gap-2 border-b border-white/10 p-3">
                     <div>
-                      <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-400">Tables</span>
+                      <span className="font-mono text-[13px] uppercase tracking-[0.22em] text-zinc-400">Tables</span>
                       {schemaDatabase && (
-                        <div className="font-mono text-[9px] text-sky-400/70 mt-0.5">{schemaDatabase}</div>
+                        <div className="mt-0.5 font-mono text-[13px] text-sky-400/70">{schemaDatabase}</div>
                       )}
                     </div>
-                    <button type="button" onClick={() => setShowSchema(false)} className="text-zinc-600 hover:text-white transition-colors">
+                    <button type="button" onClick={() => setShowSchema(false)} className="text-zinc-600 transition-colors hover:text-white">
                       <X className="size-3.5" strokeWidth={1.4} />
                     </button>
                   </div>
                   {schemaLoading ? (
-                    <div className="sql-loading-small">
+                    <div className="flex justify-center p-8">
                       <Loader2 className="size-4 animate-spin text-zinc-500" strokeWidth={1.4} />
                     </div>
                   ) : schemaData.length > 0 ? (
-                    <div className="sql-schema-list">
+                    <div className={cn(toolScrollClass, "flex flex-col gap-0.5 p-2")}>
                       {schemaData.map((item) => (
                         <button
                           key={item.name}
@@ -654,37 +624,38 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
                             setQuery(`SELECT * FROM ${item.name} LIMIT 100`);
                             playBeep("click");
                           }}
-                          className="sql-schema-item"
+                          className={cn(interactiveRowClass, "flex w-full items-center gap-2 text-left")}
                         >
-                          <Database className="size-3 text-sky-400/60 shrink-0" strokeWidth={1.3} />
+                          <Database className="size-3 shrink-0 text-sky-400/60" strokeWidth={1.3} />
                           <span className="truncate">{item.name}</span>
                         </button>
                       ))}
                     </div>
                   ) : (
                     <div className="p-4 text-center">
-                      <p className="text-xs text-zinc-600">No tables found</p>
+                      <p className="text-sm text-zinc-600">No tables found</p>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="sql-editor-container">
-                <textarea
+              <div className="flex min-h-0 flex-1 flex-col p-4">
+                <AppTextArea
                   ref={editorRef}
+                  variant="code"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
                   spellCheck={false}
-                  className="sql-textarea"
+                  className="min-h-[160px] flex-1"
                   placeholder="SELECT * FROM users LIMIT 100"
                 />
               </div>
             </div>
 
             {error && !bannerError && (
-              <div className="sql-error-bar">
-                <span className="text-zinc-400 font-mono text-xs">{error}</span>
+              <div className="border-t border-red-400/25 bg-red-400/[0.06] px-4 py-2">
+                <span className="font-mono text-sm text-zinc-400">{error}</span>
               </div>
             )}
 
@@ -693,71 +664,69 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
         )}
 
         {view.screen === "history" && (
-          <div className="sql-screen animate-scale-up">
-            <div className="sql-screen-header">
-              <h2 className="font-mono text-xs uppercase tracking-[0.28em] text-white">Query History</h2>
-              {history.length > 0 && (
-                <button type="button" onClick={clearHistory} className="sql-btn-ghost-sm">
-                  <Trash2 className="size-3" strokeWidth={1.4} />
-                  Clear local history
-                </button>
-              )}
-            </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <SectionHeader
+              title="Query History"
+              actions={
+                history.length > 0 ? (
+                  <AppButton variant="ghostSm" onClick={clearHistory} icon={<Trash2 className="size-3" strokeWidth={1.4} />}>
+                    Clear local history
+                  </AppButton>
+                ) : undefined
+              }
+              borderless
+              className="border-b border-white/10 px-4 py-3"
+            />
 
             {history.length === 0 ? (
-              <div className="sql-empty">
-                <Clock className="size-10 text-white/30" strokeWidth={1} />
-                <p className="text-sm text-zinc-500">No queries executed yet.</p>
-              </div>
+              <EmptyState icon={<Clock />} message="No queries executed yet." />
             ) : (
-              <div className="sql-history-list">
+              <div className={cn(toolScrollClass, "flex flex-col gap-2 p-4")}>
                 {history.map((entry) => (
                   <div
                     key={entry.id}
-                    className="sql-history-item"
+                    className={interactiveCardClass}
                     onClick={() => setSelectedHistory(selectedHistory === entry.id ? null : entry.id)}
                   >
-                    <div className="sql-history-item-header">
-                      <div className="sql-history-query-preview">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
                         <ChevronRight
-                          className={cn("size-3 text-zinc-600 transition-transform shrink-0", selectedHistory === entry.id && "rotate-90")}
+                          className={cn("size-3 shrink-0 text-zinc-600 transition-transform", selectedHistory === entry.id && "rotate-90")}
                           strokeWidth={1.4}
                         />
-                        <span className="truncate font-mono text-[11px] text-zinc-300">{entry.query}</span>
+                        <span className="truncate font-mono text-[13px] text-zinc-300">{entry.query}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="font-mono text-[9px] text-zinc-600">{entry.error ? "Error" : `${entry.rowCount} rows`}</span>
-                        <span className="font-mono text-[9px] text-zinc-700">{entry.executionTimeMs.toFixed(0)}ms</span>
+                        <span className="font-mono text-[13px] text-zinc-600">{entry.error ? "Error" : `${entry.rowCount} rows`}</span>
+                        <span className="font-mono text-[13px] text-zinc-700">{entry.executionTimeMs.toFixed(0)}ms</span>
                       </div>
                     </div>
                     {selectedHistory === entry.id && (
-                      <div className="sql-history-expanded">
-                        <pre className="sql-history-full-query">{entry.query}</pre>
-                        {entry.error && <p className="sql-history-error">{entry.error}</p>}
-                        <div className="flex items-center gap-2 mt-3">
-                          <button
-                            type="button"
+                      <div className="mt-3 border-t border-white/10 pt-3">
+                        <pre className={preOutputClass}>{entry.query}</pre>
+                        {entry.error && <p className="mt-2 font-mono text-sm text-red-400/90">{entry.error}</p>}
+                        <div className="mt-3 flex items-center gap-2">
+                          <AppButton
+                            variant="ghostSm"
                             onClick={(e) => {
                               e.stopPropagation();
                               setQuery(entry.query);
                               setView({ screen: "editor" });
                               playBeep("click");
                             }}
-                            className="sql-btn-ghost-sm"
                           >
                             Load in Editor
-                          </button>
-                          <button
-                            type="button"
+                          </AppButton>
+                          <AppButton
+                            variant="ghostSm"
                             onClick={(e) => {
                               e.stopPropagation();
                               void executeQuery(entry.query);
                               setView({ screen: "editor" });
                             }}
-                            className="sql-btn-ghost-sm"
                           >
                             Re-run
-                          </button>
+                          </AppButton>
                         </div>
                       </div>
                     )}
@@ -769,37 +738,39 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
         )}
 
         {view.screen === "saved" && (
-          <div className="sql-screen animate-scale-up">
-            <div className="sql-screen-header">
-              <h2 className="font-mono text-xs uppercase tracking-[0.28em] text-white">Saved Queries</h2>
-            </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <SectionHeader title="Saved Queries" borderless className="border-b border-white/10 px-4 py-3" />
 
             {savedQueries.length === 0 ? (
-              <div className="sql-empty">
-                <Save className="size-10 text-white/30" strokeWidth={1} />
-                <p className="text-sm text-zinc-500">No saved queries. Write a query in the editor and click Save.</p>
-              </div>
+              <EmptyState
+                icon={<Save />}
+                message="No saved queries. Write a query in the editor and click Save."
+              />
             ) : (
-              <div className="sql-saved-list">
+              <div className={cn(toolScrollClass, "flex flex-col gap-2 p-4")}>
                 {savedQueries.map((sq) => (
-                  <div key={sq.id} className="sql-saved-item">
-                    <div className="sql-saved-item-body">
+                  <div key={sq.id} className={cn(interactiveCardClass, "flex flex-wrap items-start justify-between gap-3")}>
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3">
-                        <span className="font-mono text-xs text-white">{sq.name}</span>
-                        <span className="font-mono text-[9px] text-zinc-600">{new Date(sq.createdAt).toLocaleDateString()}</span>
+                        <span className="font-mono text-sm text-white">{sq.name}</span>
+                        <span className="font-mono text-[13px] text-zinc-600">{new Date(sq.createdAt).toLocaleDateString()}</span>
                       </div>
-                      <pre className="sql-saved-query">{sq.query}</pre>
+                      <pre className={cn(preOutputClass, "mt-2 max-h-24 text-[13px]")}>{sq.query}</pre>
                     </div>
-                    <div className="sql-saved-actions">
-                      <button type="button" onClick={() => { setQuery(sq.query); setView({ screen: "editor" }); playBeep("click"); }} className="sql-btn-ghost-sm">
+                    <div className="flex shrink-0 items-center gap-2">
+                      <AppButton variant="ghostSm" onClick={() => { setQuery(sq.query); setView({ screen: "editor" }); playBeep("click"); }}>
                         Load
-                      </button>
-                      <button type="button" onClick={() => { void executeQuery(sq.query); setView({ screen: "editor" }); }} className="sql-btn-ghost-sm">
+                      </AppButton>
+                      <AppButton variant="ghostSm" onClick={() => { void executeQuery(sq.query); setView({ screen: "editor" }); }}>
                         Run
-                      </button>
-                      <button type="button" onClick={() => deleteSavedQuery(sq.id)} className="sql-btn-icon text-zinc-600 hover:text-red-400">
-                        <Trash2 className="size-3.5" strokeWidth={1.4} />
-                      </button>
+                      </AppButton>
+                      <AppButton
+                        variant="icon"
+                        onClick={() => deleteSavedQuery(sq.id)}
+                        className="text-zinc-600 hover:text-red-400"
+                        icon={<Trash2 className="size-3.5" strokeWidth={1.4} />}
+                        silent
+                      />
                     </div>
                   </div>
                 ))}
@@ -808,6 +779,6 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </ModuleShell>
   );
 }

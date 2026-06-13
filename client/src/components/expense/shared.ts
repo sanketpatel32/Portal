@@ -93,11 +93,8 @@ export const EXPENSE_CATEGORIES = [
 
 export const DEFAULT_CATEGORY = EXPENSE_CATEGORIES[0];
 
-export const fieldClass =
-  "w-full border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-zinc-600 focus:border-white/45";
-
-export const labelClass =
-  "mb-2 block font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500";
+import { fieldClass, labelClass } from "../../lib/form-styles";
+export { fieldClass, labelClass };
 
 const pad = (n: number) => String(n).padStart(2, "0");
 

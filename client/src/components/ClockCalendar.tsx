@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import { toLocalDateInput, parseLocalDate, calendarMonthRange } from "@/components/expense/shared";
+import { AppButton } from "./ui/AppButton";
 
 type ClockTodo = {
   id: string;
@@ -198,14 +199,12 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
   }
 
   return (
-    <div className="clock-cal w-full max-w-xl animate-scale-up">
+    <div className="w-full max-w-xl animate-scale-up">
       <div className="mb-5 flex items-center justify-end gap-3">
-        <button type="button" onClick={() => { playBeep("click"); load(); }} className="clock-cal-icon" title="Refresh">
-          <RefreshCw className="size-4" strokeWidth={1.4} />
-        </button>
-        <button type="button" onClick={toggleGoogle} className="clock-cal-icon" title={googleConnected ? "Disconnect Google" : "Connect Google"}>
+        <AppButton variant="icon" onClick={() => { playBeep("click"); load(); }} title="Refresh" icon={<RefreshCw className="size-4" strokeWidth={1.4} />} silent />
+        <AppButton variant="icon" onClick={toggleGoogle} title={googleConnected ? "Disconnect Google" : "Connect Google"} silent>
           <span className={`size-2 rounded-full ${googleConnected ? "bg-emerald-400" : "bg-zinc-600"}`} />
-        </button>
+        </AppButton>
       </div>
 
       <form onSubmit={addTodo} className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -220,7 +219,7 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
             <button
               type="button"
               className={cn(
-                "flex shrink-0 items-center gap-1.5 border-b border-white/15 py-2 font-mono text-xs text-zinc-400 outline-none hover:border-white/40 hover:text-zinc-200",
+                "flex shrink-0 items-center gap-1.5 border-b border-white/15 py-2 font-mono text-sm text-zinc-400 outline-none hover:border-white/40 hover:text-zinc-200",
                 dateOpen && "border-white/40 text-zinc-200"
               )}
             >
@@ -253,27 +252,30 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
           type="time"
           value={dueTime}
           onChange={(e) => setDueTime(e.target.value)}
-          className="border-b border-white/15 bg-transparent py-2 font-mono text-xs text-zinc-400 outline-none focus:border-white/40"
+          className="border-b border-white/15 bg-transparent py-2 font-mono text-sm text-zinc-400 outline-none focus:border-white/40"
         />
-        <button type="submit" disabled={busy} className="clock-cal-icon shrink-0 self-end sm:self-auto" title="Add">
+        <AppButton type="submit" variant="icon" disabled={busy} className="shrink-0 self-end sm:self-auto" title="Add" silent>
           {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" strokeWidth={1.5} />}
-        </button>
+        </AppButton>
       </form>
 
       {grouped.length === 0 ? (
-        <p className="py-16 text-center font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-700">Nothing scheduled</p>
+        <p className="py-16 text-center font-mono text-[13px] uppercase tracking-[0.25em] text-zinc-700">Nothing scheduled</p>
       ) : (
         <div className="flex flex-col gap-6">
           {grouped.map((group) => (
             <section key={group.label}>
-              <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">{group.label}</h3>
+              <h3 className="mb-2 font-mono text-[13px] uppercase tracking-[0.28em] text-zinc-600">{group.label}</h3>
               <ul className="flex flex-col gap-1">
                 {group.items.map((item) => {
                   const isTodo = item.kind === "todo";
                   return (
                     <li
                       key={`${item.kind}-${item.id}`}
-                      className={`clock-cal-row group ${isTodo ? "clock-cal-row--todo" : ""}`}
+                      className={cn(
+                        "group flex items-center gap-3 border-b border-white/5 py-2",
+                        isTodo && "pl-0"
+                      )}
                     >
                       {isTodo ? (
                         <button type="button" onClick={() => completeTodo(item.id)} className="text-zinc-600 hover:text-white">
@@ -285,12 +287,12 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
                       <span className="min-w-0 flex-1 truncate text-sm text-white">
                         {isTodo ? item.title : item.summary}
                       </span>
-                      <span className="shrink-0 font-mono text-[10px] text-zinc-600">{timeLabel(item)}</span>
+                      <span className="shrink-0 font-mono text-[13px] text-zinc-600">{timeLabel(item)}</span>
                       {isTodo ? (
                         <button
                           type="button"
                           onClick={() => deleteTodo(item.id)}
-                          className="text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-white"
+                          className="text-zinc-600 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:text-white p-1"
                         >
                           <Trash2 className="size-3.5" strokeWidth={1.4} />
                         </button>

@@ -1,19 +1,35 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft,
   AtSign,
   Briefcase,
   Check,
   ClipboardCheck,
-  Copy,
   Eraser,
-  Loader2,
   PenLine,
   Sparkles,
   Wand2,
-  TriangleAlert,
 } from "lucide-react";
 import { env } from "@/env";
+import { panelClass } from "@/lib/form-styles";
+import {
+  metaTextClass,
+  preOutputClass,
+  sectionLabelClass,
+  toolScrollClass,
+} from "@/lib/ui-classes";
+import { cn } from "@/lib/utils";
+import { AppButton } from "./ui/AppButton";
+import { AppInput } from "./ui/AppInput";
+import { AppTextArea } from "./ui/AppTextArea";
+import { CopyButton } from "./ui/CopyButton";
+import { EmptyState } from "./ui/EmptyState";
+import { ErrorBanner } from "./ui/ErrorBanner";
+import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
+import { ModuleShell } from "./ui/ModuleShell";
+import { SectionHeader } from "./ui/SectionHeader";
+import { TabBar } from "./ui/TabBar";
+import { ToolPanel } from "./ui/ToolPanel";
+import { ToolSplitGrid } from "./ui/ToolSplitGrid";
 
 type Props = {
   token: string;
@@ -140,7 +156,6 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ model?: string; durationMs?: number } | null>(null);
-  const [copied, setCopied] = useState(false);
   const [configured, setConfigured] = useState<boolean | null>(null);
 
   // Persist settings whenever they change.
@@ -196,6 +211,17 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
           ? "Writing…"
           : "Improving…";
 
+  const runIcon =
+    mode === "grammar" ? (
+      <Check className="size-3.5" strokeWidth={1.8} />
+    ) : mode === "twitter" ? (
+      <AtSign className="size-3.5" strokeWidth={1.6} />
+    ) : mode === "linkedin" ? (
+      <Briefcase className="size-3.5" strokeWidth={1.6} />
+    ) : (
+      <Wand2 className="size-3.5" strokeWidth={1.6} />
+    );
+
   const handleRun = useCallback(async () => {
     if (!input.trim()) {
       playBeep("error");
@@ -207,7 +233,6 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
     setError(null);
     setOutput("");
     setMeta(null);
-    setCopied(false);
 
     try {
       const res = await fetch(`${env.VITE_API_URL}/api/writing/improve`, {
@@ -240,21 +265,11 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
     }
   }, [input, mode, tone, instruction, headers, playBeep]);
 
-  const handleCopy = useCallback(() => {
-    if (!output) return;
-    navigator.clipboard.writeText(output).then(() => {
-      setCopied(true);
-      playBeep("click");
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, [output, playBeep]);
-
   const handleClear = useCallback(() => {
     setInput("");
     setOutput("");
     setError(null);
     setMeta(null);
-    setCopied(false);
     playBeep("click");
   }, [playBeep]);
 
@@ -276,265 +291,210 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
   };
 
   return (
-    <div className="writing-agent">
-      <div className="wa-compact-bar">
-        <div className="flex min-w-0 items-center gap-2">
-          <PenLine className="size-4 shrink-0 text-zinc-500" strokeWidth={1.4} />
-          <h1 className="truncate font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
-            Writing Agent
-          </h1>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            playBeep("click");
-            onBack();
-          }}
-          className="flex items-center justify-center gap-2 border border-white/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:border-white/30 hover:text-white"
-        >
-          <ArrowLeft className="size-3" strokeWidth={1.4} />
-          Back
-        </button>
-      </div>
+    <ModuleShell variant="tool" maxWidth="none" moduleClass="writing-agent">
+      <ModuleHeaderBar
+        title="Writing Agent"
+        icon={<PenLine className="size-4 shrink-0 text-zinc-500" strokeWidth={1.4} />}
+        onBack={onBack}
+      />
 
       {configured === false && (
-        <div className="wa-config-warning">
-          <TriangleAlert className="size-3.5 shrink-0" strokeWidth={1.5} />
-          <span>
-            OpenRouter is not configured on the server. Add{" "}
-            <code>OPENROUTER_API_KEY</code> to <code>server/.env</code> (get a free
-            key at openrouter.ai/keys).
-          </span>
-        </div>
+        <ErrorBanner
+          variant="warning"
+          message='OpenRouter is not configured on the server. Add OPENROUTER_API_KEY to server/.env (get a free key at openrouter.ai/keys).'
+        />
       )}
 
-      <div className="wa-controls">
-        {/* Mode selector */}
-        <div className="wa-settings-row">
-          <span className="wa-settings-label">Mode</span>
-          <div className="wa-mode-chips" role="radiogroup" aria-label="Mode">
-            {MODE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                role="radio"
-                aria-checked={mode === opt.value}
-                onClick={() => {
-                  playBeep("click");
-                  setMode(opt.value);
-                }}
-                className={`wa-mode-chip ${
-                  mode === opt.value ? "wa-mode-chip-active" : ""
-                }`}
-              >
-                {opt.value === "grammar" ? (
+      <div className={cn(panelClass, "mb-4 flex shrink-0 flex-col gap-4")}>
+        <div className="flex flex-col gap-2">
+          <span className={sectionLabelClass}>Mode</span>
+          <TabBar
+            tabs={MODE_OPTIONS.map((opt) => ({
+              id: opt.value,
+              label: opt.label,
+              icon:
+                opt.value === "grammar" ? (
                   <Check className="size-3" strokeWidth={1.6} />
-                ) : (
+                ) : opt.value === "improve" ? (
                   <Wand2 className="size-3" strokeWidth={1.6} />
-                )}
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <span className="wa-mode-hint">{activeModeOption.hint}</span>
+                ) : opt.value === "linkedin" ? (
+                  <Briefcase className="size-3" strokeWidth={1.6} />
+                ) : (
+                  <AtSign className="size-3" strokeWidth={1.6} />
+                ),
+            }))}
+            active={mode}
+            onChange={(id) => setMode(id as WritingMode)}
+            variant="chip"
+            className="mb-2"
+          />
+          <p className={metaTextClass}>{activeModeOption.hint}</p>
         </div>
 
-        {/* Tone selector — only relevant for Improve mode */}
-        <div className={`wa-settings-row ${mode === "grammar" ? "wa-disabled" : ""}`}>
-          <span className="wa-settings-label">
+        <div
+          className={cn(
+            "flex flex-col gap-2",
+            mode === "grammar" && "pointer-events-none opacity-40",
+          )}
+        >
+          <span className={sectionLabelClass}>
             Tone{" "}
             {mode === "grammar" && (
-              <span className="wa-settings-sub">(used in Improve mode)</span>
+              <span className="font-normal normal-case tracking-normal text-zinc-600">
+                (used in Improve mode)
+              </span>
             )}
           </span>
-          <div className="wa-tone-chips" role="radiogroup" aria-label="Tone">
-            {TONE_OPTIONS.map((opt) => {
-              const disabled = mode === "grammar";
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={tone === opt.value}
-                  disabled={disabled}
-                  onClick={() => {
-                    playBeep("click");
-                    setTone(opt.value);
-                  }}
-                  className={`wa-tone-chip ${
-                    tone === opt.value ? "wa-tone-chip-active" : ""
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+          <TabBar
+            tabs={TONE_OPTIONS.map((opt) => ({
+              id: opt.value,
+              label: opt.label,
+              disabled: mode === "grammar",
+            }))}
+            active={tone}
+            onChange={(id) => setTone(id as WritingTone)}
+            variant="chip"
+          />
         </div>
 
-        {/* Custom instruction */}
-        <div className="wa-settings-row full-width">
-          <label className="wa-settings-label" htmlFor="wa-instruction-input">
+        <div className="flex flex-col gap-2">
+          <label className={sectionLabelClass} htmlFor="writing-instruction-input">
             Custom instruction (optional)
           </label>
-          <input
-            id="wa-instruction-input"
+          <AppInput
+            id="writing-instruction-input"
             type="text"
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             placeholder='e.g. "make it sound more confident" or "keep it under 50 words"'
-            className="wa-instruction-input"
+            inputSize="sm"
             spellCheck={false}
             maxLength={200}
           />
         </div>
       </div>
 
-      <div className="wa-grid">
-        {/* ── Input panel ─────────────────────────────────────── */}
-        <section className="wa-panel">
-          <div className="wa-panel-head">
-            <div className="wa-panel-title">
-              <Sparkles className="size-3.5 text-zinc-500" strokeWidth={1.5} />
-              <span>Input</span>
-            </div>
-            <div className="wa-panel-meta">
-              <span>{wordCount} words</span>
-              <span aria-hidden>·</span>
-              <span>{charCount} chars</span>
-            </div>
-          </div>
+      <ToolSplitGrid>
+        <ToolPanel>
+          <SectionHeader
+            title="Input"
+            icon={<Sparkles className="size-3.5" strokeWidth={1.5} />}
+            actions={
+              <div className={cn(metaTextClass, "flex items-center gap-2")}>
+                <span>{wordCount} words</span>
+                <span aria-hidden>·</span>
+                <span>{charCount} chars</span>
+              </div>
+            }
+          />
 
-          <textarea
+          <AppTextArea
+            variant="code"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={PLACEHOLDER_BY_MODE[mode]}
-            className="wa-textarea"
+            className="min-h-0 flex-1"
             spellCheck
           />
 
-          <div className="wa-action-row">
-            <div className="wa-action-secondary">
-              <button
-                type="button"
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AppButton
+                variant="ghostSm"
+                silent
                 onClick={handleExample}
-                className="wa-ghost-btn"
                 title="Insert a sample"
+                icon={<Sparkles className="size-3.5" strokeWidth={1.5} />}
               >
-                <Sparkles className="size-3.5" strokeWidth={1.5} />
                 Sample
-              </button>
-              <button
-                type="button"
+              </AppButton>
+              <AppButton
+                variant="ghostSm"
+                silent
                 onClick={handleClear}
-                className="wa-ghost-btn"
                 disabled={!input && !output}
                 title="Clear both panes"
+                icon={<Eraser className="size-3.5" strokeWidth={1.5} />}
               >
-                <Eraser className="size-3.5" strokeWidth={1.5} />
                 Clear
-              </button>
+              </AppButton>
             </div>
-            <button
-              type="button"
+            <AppButton
+              variant="primary"
+              silent
+              loading={isWorking}
+              disabled={!input.trim()}
               onClick={handleRun}
-              disabled={isWorking || !input.trim()}
-              className="wa-run-btn"
+              icon={runIcon}
             >
-              {isWorking ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin" strokeWidth={1.6} />
-                  {runningLabel}
-                </>
-              ) : (
-                <>
-                  {mode === "grammar" ? (
-                    <Check className="size-3.5" strokeWidth={1.8} />
-                  ) : mode === "twitter" ? (
-                    <AtSign className="size-3.5" strokeWidth={1.6} />
-                  ) : mode === "linkedin" ? (
-                    <Briefcase className="size-3.5" strokeWidth={1.6} />
-                  ) : (
-                    <Wand2 className="size-3.5" strokeWidth={1.6} />
-                  )}
-                  {runLabel}
-                </>
-              )}
-            </button>
+              {isWorking ? runningLabel : runLabel}
+            </AppButton>
           </div>
-        </section>
+        </ToolPanel>
 
-        {/* ── Output panel ────────────────────────────────────── */}
-        <section className="wa-panel">
-          <div className="wa-panel-head">
-            <div className="wa-panel-title">
-              <ClipboardCheck className="size-3.5 text-zinc-500" strokeWidth={1.5} />
-              <span>Output</span>
-            </div>
-            <div className="wa-panel-meta">
-              {mode === "twitter" && output ? (
-                <span
-                  className={`wa-char-badge ${
-                    output.length > 280 ? "wa-char-badge-over" : "wa-char-badge-ok"
-                  }`}
-                  title="Tweet length (X limit is 280 characters)"
-                >
-                  {output.length}/280
-                </span>
-              ) : null}
-              {meta?.model ? (
-                <span className="wa-model-tag" title={`Model: ${meta.model}`}>
-                  {meta.model.length > 32 ? `${meta.model.slice(0, 30)}…` : meta.model}
-                </span>
-              ) : null}
-              {meta?.durationMs != null && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>{Math.round(meta.durationMs)}ms</span>
-                </>
-              )}
-            </div>
-          </div>
+        <ToolPanel>
+          <SectionHeader
+            title="Output"
+            icon={<ClipboardCheck className="size-3.5" strokeWidth={1.5} />}
+            actions={
+              <div className={cn(metaTextClass, "flex items-center gap-2")}>
+                {mode === "twitter" && output ? (
+                  <span
+                    className={cn(
+                      "rounded px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-wider",
+                      output.length > 280
+                        ? "bg-red-500/10 text-red-400"
+                        : "bg-emerald-500/10 text-emerald-400",
+                    )}
+                    title="Tweet length (X limit is 280 characters)"
+                  >
+                    {output.length}/280
+                  </span>
+                ) : null}
+                {meta?.model ? (
+                  <span
+                    className="max-w-[180px] truncate rounded bg-white/5 px-1.5 py-0.5 font-mono text-[11px] text-zinc-500"
+                    title={`Model: ${meta.model}`}
+                  >
+                    {meta.model.length > 32 ? `${meta.model.slice(0, 30)}…` : meta.model}
+                  </span>
+                ) : null}
+                {meta?.durationMs != null && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{Math.round(meta.durationMs)}ms</span>
+                  </>
+                )}
+              </div>
+            }
+          />
 
-          <div className="wa-output-wrap">
+          <div className={cn(toolScrollClass, "flex flex-col")}>
             {error ? (
-              <div className="wa-error">
-                <TriangleAlert className="size-4 shrink-0" strokeWidth={1.5} />
-                <span>{error}</span>
-              </div>
+              <ErrorBanner message={error} className="mb-0" />
             ) : output ? (
-              <pre className="wa-output">{output}</pre>
+              <pre className={preOutputClass}>{output}</pre>
             ) : (
-              <div className="wa-output-empty">
-                Your polished text will appear here.
-              </div>
+              <EmptyState
+                message="Your polished text will appear here."
+                compact
+                className="flex-1"
+              />
             )}
           </div>
 
-          <div className="wa-action-row wa-output-actions">
-            <span className="wa-hint">Ready to copy-paste</span>
-            <button
-              type="button"
-              onClick={handleCopy}
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <span className={metaTextClass}>Ready to copy-paste</span>
+            <CopyButton
+              text={output}
               disabled={!output}
-              className={`wa-copy-btn ${copied ? "wa-copy-btn-done" : ""}`}
-            >
-              {copied ? (
-                <>
-                  <Check className="size-3.5" strokeWidth={1.8} />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="size-3.5" strokeWidth={1.5} />
-                  Copy
-                </>
-              )}
-            </button>
+              label="Copy"
+              copiedLabel="Copied"
+            />
           </div>
-        </section>
-      </div>
-    </div>
+        </ToolPanel>
+      </ToolSplitGrid>
+    </ModuleShell>
   );
 }

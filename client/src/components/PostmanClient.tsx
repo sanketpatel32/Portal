@@ -1,21 +1,38 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { env } from "@/env";
 import {
-  ArrowLeft,
-  Loader2,
   Play,
   Plus,
   Trash2,
   Send,
   Clock,
-  Copy,
-  Check,
-  AlertCircle,
   Globe,
-  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseApiError } from "@/lib/parse-api-error";
+import {
+  formatToggleClass,
+  interactiveRowClass,
+  monoInputSmClass,
+  chipButtonClass,
+  preOutputClass,
+  toolScrollClass,
+  metaTextClass,
+  sectionLabelClass,
+} from "@/lib/ui-classes";
+import { TabBar } from "./ui/TabBar";
+import { CopyButton } from "./ui/CopyButton";
+import { ModuleShell } from "./ui/ModuleShell";
+import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
+import { AppButton } from "./ui/AppButton";
+import { AppInput } from "./ui/AppInput";
+import { AppTextArea } from "./ui/AppTextArea";
+import { ToolSplitGrid } from "./ui/ToolSplitGrid";
+import { ToolPanel } from "./ui/ToolPanel";
+import { EmptyState } from "./ui/EmptyState";
+import { ErrorBanner } from "./ui/ErrorBanner";
+import { AppModal } from "./ui/AppModal";
+import { SectionHeader } from "./ui/SectionHeader";
 
 type Props = {
   token: string;
@@ -67,6 +84,15 @@ const METHOD_COLORS: Record<HttpMethod, string> = {
   HEAD: "#a1a1aa",
   OPTIONS: "#a1a1aa",
 };
+
+const JSON_TOKEN_CLASS = {
+  key: "text-sky-400",
+  str: "text-emerald-400",
+  num: "text-amber-400",
+  bool: "text-purple-400",
+  null: "text-zinc-500",
+  punct: "text-zinc-400",
+} as const;
 
 const STORAGE_KEY = "postman_history";
 const MAX_HISTORY = 50;
@@ -125,8 +151,6 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [responseView, setResponseView] = useState<"body" | "headers">("body");
   const [respFormat, setRespFormat] = useState<"pretty" | "raw">("pretty");
-  const [copied, setCopied] = useState(false);
-
   const [history, setHistory] = useState<HistoryEntry[]>(() => {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
@@ -273,14 +297,6 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
     playBeep("click");
   };
 
-  const copyResponse = () => {
-    if (!response) return;
-    navigator.clipboard.writeText(response.body).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
   const handleUrlKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -318,54 +334,33 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
   })();
 
   return (
-    <div className="postman-client">
-      <div className="pm-compact-bar">
-        <div className="flex min-w-0 items-center gap-2">
-          <Send className="size-4 shrink-0 text-zinc-500" strokeWidth={1.4} />
-          <h1 className="truncate font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
-            Postman
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              playBeep("click");
-              setShowHistory((v) => !v);
-            }}
-            className={cn(
-              "flex items-center justify-center gap-2 border border-white/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:border-white/30 hover:text-white",
-              showHistory && "border-white/35 text-white",
-            )}
+    <ModuleShell variant="tool" maxWidth="none">
+      <ModuleHeaderBar
+        title="Postman"
+        icon={<Send className="size-4 shrink-0 text-zinc-500" strokeWidth={1.4} />}
+        onBack={onBack}
+        actions={
+          <AppButton
+            variant="toolbar"
+            active={showHistory}
+            onClick={() => setShowHistory((v) => !v)}
+            icon={<Clock className="size-3" strokeWidth={1.4} />}
           >
-            <Clock className="size-3" strokeWidth={1.4} />
             History
             {history.length > 0 && (
               <span className="text-white/40">{history.length}</span>
             )}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              playBeep("click");
-              onBack();
-            }}
-            className="flex items-center justify-center gap-2 border border-white/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:border-white/30 hover:text-white"
-          >
-            <ArrowLeft className="size-3" strokeWidth={1.4} />
-            Back
-          </button>
-        </div>
-      </div>
+          </AppButton>
+        }
+      />
 
-      <div className="pm-grid">
-        {/* ── Left: Request Builder ────────────────────────────── */}
-        <section className="pm-request-panel">
-          <div className="pm-url-row">
+      <ToolSplitGrid>
+        <ToolPanel>
+          <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
             <select
               value={method}
               onChange={(e) => setMethod(e.target.value as HttpMethod)}
-              className="pm-method-select"
+              className={cn(monoInputSmClass, "w-auto shrink-0 cursor-pointer")}
               style={{ color: METHOD_COLORS[method] }}
             >
               {HTTP_METHODS.map((m) => (
@@ -374,46 +369,40 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
                 </option>
               ))}
             </select>
-            <input
+            <AppInput
               ref={urlRef}
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={handleUrlKeyDown}
               placeholder="https://api.example.com/endpoint"
-              className="pm-url-input"
+              className="min-w-0 flex-1 font-mono text-sm"
               spellCheck={false}
               autoComplete="off"
             />
-            <button
-              type="button"
-              onClick={executeRequest}
-              disabled={isExecuting}
-              className="pm-send-btn"
+            <AppButton
+              variant="primary"
+              onClick={() => void executeRequest()}
+              loading={isExecuting}
+              silent
+              icon={!isExecuting ? <Play className="size-4" strokeWidth={1.6} /> : undefined}
             >
-              {isExecuting ? (
-                <Loader2 className="size-4 animate-spin" strokeWidth={1.6} />
-              ) : (
-                <Play className="size-4" strokeWidth={1.6} />
-              )}
               Send
-            </button>
+            </AppButton>
           </div>
 
           {!url && (
-            <div className="pm-examples">
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-600">
-                Try
-              </span>
+            <div className="mb-3 flex shrink-0 flex-wrap items-center gap-2">
+              <span className={sectionLabelClass}>Try</span>
               {EXAMPLES.map((ex) => (
                 <button
                   key={ex.url}
                   type="button"
                   onClick={() => loadExample(ex)}
-                  className="pm-example-chip"
+                  className={chipButtonClass(false)}
                 >
                   <span
-                    className="font-mono text-[9px]"
+                    className="font-mono text-[13px]"
                     style={{ color: METHOD_COLORS[ex.method] }}
                   >
                     {ex.method}
@@ -424,41 +413,22 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
             </div>
           )}
 
-          <div className="pm-tabs">
-            {(["params", "headers", "body"] as RequestTab[]).map((tab) => {
-              const disabled = tab === "body" && !hasBody;
-              const count =
-                tab === "params"
-                  ? params.filter((p) => p.enabled && p.key).length
-                  : tab === "headers"
-                    ? headers.filter((h) => h.enabled && h.key).length
-                    : 0;
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => {
-                    playBeep("click");
-                    setActiveTab(tab);
-                  }}
-                  className={cn(
-                    "pm-tab",
-                    activeTab === tab && "pm-tab-active",
-                    disabled && "pm-tab-disabled",
-                  )}
-                >
-                  {tab}
-                  {count > 0 && <span className="pm-tab-count">{count}</span>}
-                </button>
-              );
-            })}
-          </div>
+          <TabBar
+            tabs={[
+              { id: "params", label: "Params", count: params.filter((p) => p.enabled && p.key).length },
+              { id: "headers", label: "Headers", count: headers.filter((h) => h.enabled && h.key).length },
+              { id: "body", label: "Body", disabled: !hasBody },
+            ]}
+            active={activeTab}
+            onChange={(id) => setActiveTab(id as RequestTab)}
+            variant="underline"
+            className="mb-3 w-full shrink-0 border-b border-white/5"
+          />
 
-          <div className="pm-tab-body">
+          <div className={cn(toolScrollClass, "flex flex-col")}>
             {activeTab === "body" ? (
-              <div className="pm-body-wrap">
-                <div className="pm-body-toolbar">
+              <div className="flex min-h-0 flex-1 flex-col gap-2">
+                <div className="flex shrink-0 items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -466,10 +436,7 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
                         playBeep("click");
                         setReqBodyFormat("json");
                       }}
-                      className={cn(
-                        "pm-format-btn",
-                        reqBodyFormat === "json" && "pm-format-btn-active",
-                      )}
+                      className={formatToggleClass(reqBodyFormat === "json")}
                     >
                       JSON
                     </button>
@@ -479,17 +446,15 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
                         playBeep("click");
                         setReqBodyFormat("text");
                       }}
-                      className={cn(
-                        "pm-format-btn",
-                        reqBodyFormat === "text" && "pm-format-btn-active",
-                      )}
+                      className={formatToggleClass(reqBodyFormat === "text")}
                     >
                       Text
                     </button>
                   </div>
                   {reqBodyFormat === "json" && (
-                    <button
-                      type="button"
+                    <AppButton
+                      variant="ghostSm"
+                      silent
                       onClick={() => {
                         try {
                           const parsed = JSON.parse(body);
@@ -499,13 +464,13 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
                           playBeep("error");
                         }
                       }}
-                      className="pm-beautify-btn"
                     >
                       Beautify
-                    </button>
+                    </AppButton>
                   )}
                 </div>
-                <textarea
+                <AppTextArea
+                  variant="code"
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   placeholder={
@@ -513,7 +478,7 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
                       ? '{\n  "key": "value"\n}'
                       : "Request body..."
                   }
-                  className="pm-body-textarea"
+                  className="min-h-[180px] flex-1"
                   spellCheck={false}
                 />
               </div>
@@ -528,90 +493,63 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
               />
             )}
           </div>
-        </section>
+        </ToolPanel>
 
-        {/* ── Right: Response Viewer ──────────────────────────── */}
-        <section className="pm-response-panel">
-          <div className="pm-response-header">
-            <h2 className="font-mono text-xs uppercase tracking-[0.28em] text-white">
-              Response
-            </h2>
-            {response && (
-              <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.18em]">
-                {response.status > 0 && (
-                  <span style={{ color: statusColor(response.status) }}>
-                    {statusLabel(response.status, response.statusText)}
-                  </span>
-                )}
-                {response.sizeBytes > 0 && (
-                  <span className="text-zinc-500">{formatBytes(response.sizeBytes)}</span>
-                )}
-                <span className="text-zinc-500">{formatDuration(response.durationMs)}</span>
-              </div>
-            )}
-          </div>
+        <ToolPanel>
+          <SectionHeader
+            title="Response"
+            borderless
+            className="shrink-0"
+            meta={
+              response ? (
+                <div className="flex items-center gap-3 font-mono text-[13px] uppercase tracking-[0.18em]">
+                  {response.status > 0 && (
+                    <span style={{ color: statusColor(response.status) }}>
+                      {statusLabel(response.status, response.statusText)}
+                    </span>
+                  )}
+                  {response.sizeBytes > 0 && (
+                    <span className="text-zinc-500">{formatBytes(response.sizeBytes)}</span>
+                  )}
+                  <span className="text-zinc-500">{formatDuration(response.durationMs)}</span>
+                </div>
+              ) : undefined
+            }
+          />
 
           {!response ? (
-            <div className="pm-empty">
-              <Globe className="size-10 text-white/30" strokeWidth={1.2} />
-              <p className="max-w-md text-sm leading-6 text-zinc-500">
-                Hit{" "}
-                <kbd className="border border-white/10 px-1.5 py-0.5 text-[10px] font-mono">
-                  Send
-                </kbd>{" "}
-                to fire off your request. Responses, headers and timings land here.
-              </p>
-            </div>
+            <EmptyState
+              icon={<Globe strokeWidth={1.2} />}
+              message="No response yet"
+              description='Hit Send to fire off your request. Responses, headers and timings land here.'
+              className="flex-1"
+            />
           ) : response.error && response.status === 0 ? (
-            <div className="pm-error">
-              <AlertCircle className="size-8 text-red-400/80" strokeWidth={1.3} />
-              <p className="text-sm text-zinc-300">{response.error}</p>
+            <div className="flex flex-1 flex-col justify-center p-4">
+              <ErrorBanner message={response.error} />
             </div>
           ) : (
-            <>
-              <div className="pm-response-tabs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    playBeep("click");
-                    setResponseView("body");
-                  }}
-                  className={cn(
-                    "pm-response-tab",
-                    responseView === "body" && "pm-response-tab-active",
-                  )}
-                >
-                  Body
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    playBeep("click");
-                    setResponseView("headers");
-                  }}
-                  className={cn(
-                    "pm-response-tab",
-                    responseView === "headers" && "pm-response-tab-active",
-                  )}
-                >
-                  Headers ({Object.keys(response.headers).length})
-                </button>
-                <button
-                  type="button"
-                  onClick={copyResponse}
-                  className="pm-response-action"
-                  title="Copy body"
-                >
-                  {copied ? (
-                    <Check className="size-3.5 text-emerald-400" strokeWidth={1.4} />
-                  ) : (
-                    <Copy className="size-3.5" strokeWidth={1.4} />
-                  )}
-                </button>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="flex shrink-0 items-center justify-between border-b border-white/5">
+                <TabBar
+                  tabs={[
+                    { id: "body", label: "Body" },
+                    { id: "headers", label: `Headers (${Object.keys(response.headers).length})` },
+                  ]}
+                  active={responseView}
+                  onChange={(id) => setResponseView(id as "body" | "headers")}
+                  variant="underline"
+                  className="mb-0 flex-1 border-b-0"
+                />
+                <CopyButton
+                  text={() => response?.body ?? ""}
+                  onCopied={() => playBeep("success")}
+                />
               </div>
+
               {responseView === "body" ? (
-                <div className="pm-response-body-wrap">
-                  <div className="pm-body-toolbar pm-response-body-toolbar">
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="flex shrink-0 items-center justify-between gap-2 py-2">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -619,10 +557,7 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
                           playBeep("click");
                           setRespFormat("pretty");
                         }}
-                        className={cn(
-                          "pm-format-btn",
-                          respFormat === "pretty" && "pm-format-btn-active",
-                        )}
+                        className={formatToggleClass(respFormat === "pretty")}
                       >
                         Pretty
                       </button>
@@ -632,18 +567,13 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
                           playBeep("click");
                           setRespFormat("raw");
                         }}
-                        className={cn(
-                          "pm-format-btn",
-                          respFormat === "raw" && "pm-format-btn-active",
-                        )}
+                        className={formatToggleClass(respFormat === "raw")}
                       >
                         Raw
                       </button>
                     </div>
                     {respFormat === "pretty" && isJsonLike(response.body, response.contentType) && (
-                      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-zinc-600">
-                        JSON
-                      </span>
+                      <span className={metaTextClass}>JSON</span>
                     )}
                   </div>
                   <JsonHighlighter
@@ -651,109 +581,89 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
                     enabled={respFormat === "pretty"}
                   />
                   {response.bodyTruncated && (
-                    <div className="pm-truncated-note">
+                    <p className={cn(metaTextClass, "shrink-0 border-t border-white/5 px-1 py-2")}>
                       Response truncated at 2MB
-                    </div>
+                    </p>
                   )}
                 </div>
               ) : (
-                <div className="pm-headers-list">
+                <div className={cn(toolScrollClass, "flex flex-col gap-1 py-2")}>
                   {Object.entries(response.headers).length === 0 ? (
-                    <p className="pm-headers-empty">No response headers</p>
+                    <EmptyState message="No response headers" compact />
                   ) : (
                     Object.entries(response.headers).map(([key, value]) => (
-                      <div key={key} className="pm-header-row">
-                        <span className="pm-header-key">{key}</span>
-                        <span className="pm-header-value">{value}</span>
+                      <div
+                        key={key}
+                        className="grid grid-cols-[minmax(120px,1fr)_2fr] gap-3 border-b border-white/5 px-1 py-2 font-mono text-[13px]"
+                      >
+                        <span className="break-all text-sky-400/90">{key}</span>
+                        <span className="break-all text-zinc-400">{value}</span>
                       </div>
                     ))
                   )}
                 </div>
               )}
-            </>
-          )}
-        </section>
-      </div>
-
-      {showHistory && (
-        <div
-          className="pm-history-overlay"
-          role="button"
-          tabIndex={0}
-          onClick={() => setShowHistory(false)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setShowHistory(false);
-          }}
-        >
-          <div
-            className="pm-history-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Request history"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="pm-history-header">
-              <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white">
-                Request History
-              </span>
-              <div className="flex items-center gap-2">
-                {history.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearHistory}
-                    className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:text-red-400"
-                  >
-                    <Trash2 className="size-3" strokeWidth={1.4} />
-                    Clear
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowHistory(false)}
-                  className="text-zinc-500 transition-colors hover:text-white"
-                >
-                  <X className="size-4" strokeWidth={1.5} />
-                </button>
-              </div>
             </div>
-            {history.length === 0 ? (
-              <p className="pm-history-empty">No requests yet</p>
-            ) : (
-              <div className="pm-history-list">
-                {history.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => loadHistory(entry)}
-                    className="pm-history-item"
-                  >
-                    <span
-                      className="pm-history-method"
-                      style={{ color: METHOD_COLORS[entry.method as HttpMethod] || "#a1a1aa" }}
-                    >
-                      {entry.method}
-                    </span>
-                    <span className="pm-history-url">{entry.url}</span>
-                    <span
-                      className="pm-history-status"
-                      style={{ color: statusColor(entry.status) }}
-                    >
-                      {entry.status === 0 ? "ERR" : entry.status}
-                    </span>
-                    <span className="pm-history-meta">
-                      {new Date(entry.executedAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+          )}
+        </ToolPanel>
+      </ToolSplitGrid>
+
+      <AppModal
+        open={showHistory}
+        onClose={() => setShowHistory(false)}
+        title="Request History"
+      >
+        {history.length > 0 && (
+          <div className="mb-3 flex justify-end">
+            <AppButton
+              variant="ghostSm"
+              onClick={clearHistory}
+              icon={<Trash2 className="size-3" strokeWidth={1.4} />}
+              className="text-zinc-500 hover:text-red-400"
+            >
+              Clear
+            </AppButton>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+        {history.length === 0 ? (
+          <EmptyState message="No requests yet" compact />
+        ) : (
+          <div className="flex flex-col gap-2">
+            {history.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                onClick={() => loadHistory(entry)}
+                className={cn(
+                  interactiveRowClass,
+                  "grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-3 text-left",
+                )}
+              >
+                <span
+                  className="shrink-0 font-mono text-[13px] uppercase"
+                  style={{ color: METHOD_COLORS[entry.method as HttpMethod] || "#a1a1aa" }}
+                >
+                  {entry.method}
+                </span>
+                <span className="truncate font-mono text-[13px] text-zinc-300">{entry.url}</span>
+                <span
+                  className="shrink-0 font-mono text-[13px]"
+                  style={{ color: statusColor(entry.status) }}
+                >
+                  {entry.status === 0 ? "ERR" : entry.status}
+                </span>
+                <span className={cn(metaTextClass, "shrink-0")}>
+                  {new Date(entry.executedAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </AppModal>
+    </ModuleShell>
   );
 }
 
@@ -773,56 +683,56 @@ function KeyValueEditor({
   valuePlaceholder: string;
 }) {
   return (
-    <div className="pm-kv-list">
+    <div className="flex flex-col gap-2">
       {rows.map((row) => (
-        <div key={row.id} className="pm-kv-row">
+        <div key={row.id} className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={row.enabled}
             onChange={(e) => onChange(row.id, { enabled: e.target.checked })}
-            className="pm-kv-checkbox"
+            className="size-4 shrink-0 cursor-pointer accent-white"
             title={row.enabled ? "Disable" : "Enable"}
           />
-          <input
+          <AppInput
             type="text"
+            inputSize="sm"
             value={row.key}
             onChange={(e) => onChange(row.id, { key: e.target.value })}
             placeholder={keyPlaceholder}
-            className={cn("pm-kv-input", !row.enabled && "pm-kv-input-disabled")}
+            className={cn("min-w-0 flex-1", !row.enabled && "opacity-40")}
             spellCheck={false}
             autoComplete="off"
           />
-          <input
+          <AppInput
             type="text"
+            inputSize="sm"
             value={row.value}
             onChange={(e) => onChange(row.id, { value: e.target.value })}
             placeholder={valuePlaceholder}
-            className={cn("pm-kv-input", !row.enabled && "pm-kv-input-disabled")}
+            className={cn("min-w-0 flex-1", !row.enabled && "opacity-40")}
             spellCheck={false}
             autoComplete="off"
           />
-          <button
-            type="button"
+          <AppButton
+            variant="icon"
             onClick={() => onRemove(row.id)}
-            className="pm-kv-remove"
-            title="Remove"
-          >
-            <Trash2 className="size-3.5" strokeWidth={1.4} />
-          </button>
+            aria-label="Remove row"
+            icon={<Trash2 className="size-3.5" strokeWidth={1.4} />}
+            className="shrink-0"
+          />
         </div>
       ))}
-      <button type="button" onClick={onAdd} className="pm-kv-add">
-        <Plus className="size-3.5" strokeWidth={1.5} />
+      <AppButton
+        variant="ghostSm"
+        onClick={onAdd}
+        icon={<Plus className="size-3.5" strokeWidth={1.5} />}
+        className="self-start"
+      >
         Add row
-      </button>
+      </AppButton>
     </div>
   );
 }
-
-// ── JSON syntax highlighter ─────────────────────────────────────
-// Lightweight, dependency-free. Scans line-by-line so very large
-// bodies stay cheap. Only applied when "Pretty" is active; for
-// non-JSON or unparseable content we fall back to plain text.
 
 const JSON_TOKEN_RE =
   /("(?:\\.|[^"\\])*"\s*:?)|(\b-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(\btrue\b|\bfalse\b)|(\bnull\b)|([{}[\],])/g;
@@ -842,16 +752,16 @@ function highlightJsonLine(line: string): Array<{ text: string; cls: string }> {
       const isKey = /:\s*$/.test(keyStr);
       tokens.push({
         text: full,
-        cls: isKey ? "pm-tok-key" : "pm-tok-str",
+        cls: isKey ? JSON_TOKEN_CLASS.key : JSON_TOKEN_CLASS.str,
       });
     } else if (num) {
-      tokens.push({ text: full, cls: "pm-tok-num" });
+      tokens.push({ text: full, cls: JSON_TOKEN_CLASS.num });
     } else if (bool) {
-      tokens.push({ text: full, cls: "pm-tok-bool" });
+      tokens.push({ text: full, cls: JSON_TOKEN_CLASS.bool });
     } else if (nul) {
-      tokens.push({ text: full, cls: "pm-tok-null" });
+      tokens.push({ text: full, cls: JSON_TOKEN_CLASS.null });
     } else if (punct) {
-      tokens.push({ text: full, cls: "pm-tok-punct" });
+      tokens.push({ text: full, cls: JSON_TOKEN_CLASS.punct });
     } else {
       tokens.push({ text: full, cls: "" });
     }
@@ -865,21 +775,20 @@ function highlightJsonLine(line: string): Array<{ text: string; cls: string }> {
 
 function JsonHighlighter({ text, enabled }: { text: string; enabled: boolean }) {
   if (!enabled) {
-    return <pre className="pm-response-body">{text}</pre>;
+    return <pre className={preOutputClass}>{text}</pre>;
   }
 
-  // If it doesn't look like JSON (no leading { or [), render plain.
   const trimmed = text.trim();
   const looksJson = trimmed.startsWith("{") || trimmed.startsWith("[");
   if (!looksJson) {
-    return <pre className="pm-response-body">{text}</pre>;
+    return <pre className={preOutputClass}>{text}</pre>;
   }
 
   const lines = text.split("\n");
   return (
-    <pre className="pm-response-body pm-response-body-highlight">
+    <pre className={cn(preOutputClass, "p-3")}>
       {lines.map((line, i) => (
-        <span key={i} className="pm-json-line">
+        <span key={i} className="block">
           {highlightJsonLine(line).map((tok, j) =>
             tok.cls ? (
               <span key={j} className={tok.cls}>

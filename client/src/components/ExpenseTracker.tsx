@@ -9,7 +9,6 @@ import {
   IndianRupee,
   PieChart,
   Pencil,
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -18,6 +17,13 @@ import {
 import { cn } from "@/lib/utils";
 import { ExpenseChart } from "./expense/ExpenseChart";
 import { RecurringExpensesList } from "./expense/RecurringExpenses";
+import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
+import { ModuleShell } from "./ui/ModuleShell";
+import { SectionHeader } from "./ui/SectionHeader";
+import { TabBar } from "./ui/TabBar";
+import { EmptyState } from "./ui/EmptyState";
+import { panelClass } from "@/lib/form-styles";
+import { FormField } from "./shared/FormField";
 import { DatePickerField } from "./expense/DatePickerField";
 import {
   type ChartGroupBy,
@@ -345,10 +351,10 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
 
   if (loading) {
     return (
-      <div className="expense-tracker w-[calc(100vw-24px)] max-w-none animate-scale-up">
-        <div className="et-compact-bar">
+      <ModuleShell variant="content" maxWidth="6xl">
+        <div className="mb-4 flex min-h-[44px] items-center justify-between">
           <div className="h-4 w-40 animate-pulse rounded bg-white/[0.06]" />
-          <div className="h-8 w-16 animate-pulse rounded bg-white/[0.06]" />
+          <div className="h-11 w-16 animate-pulse rounded bg-white/[0.06]" />
         </div>
         <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
           <div className="space-y-4">
@@ -357,91 +363,61 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
           </div>
           <div className="h-[min(640px,calc(100vh-120px))] animate-pulse rounded border border-white/10 bg-white/[0.03]" />
         </div>
-      </div>
+      </ModuleShell>
     );
   }
 
   return (
-    <div className="expense-tracker w-[calc(100vw-24px)] max-w-none animate-scale-up">
-      <div className="et-compact-bar">
-        <div className="flex min-w-0 items-center gap-2">
-          <PieChart className="size-4 shrink-0 text-zinc-500" strokeWidth={1.4} />
-          <h1 className="truncate font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
-            Monthly Expense Tracker
-          </h1>
-          <span className="font-mono text-[10px] text-zinc-700">
+    <ModuleShell variant="content" maxWidth="6xl">
+      <ModuleHeaderBar
+        title="Monthly Expense Tracker"
+        icon={<PieChart className="size-4" />}
+        onBack={onBack}
+        actions={
+          <span className="font-mono text-[13px] text-zinc-700 mr-2">
             · {summary.totalCount} {summary.totalCount === 1 ? "entry" : "entries"}
           </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => { playBeep("click"); onBack(); }}
-          className="flex items-center justify-center gap-2 border border-white/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500 transition-colors hover:border-white/30 hover:text-white"
-        >
-          <ArrowLeft className="size-3.5" strokeWidth={1.5} />
-          Back
-        </button>
-      </div>
+        }
+      />
 
       {/* Mobile Tab Selector */}
-      <div className="flex lg:hidden items-center gap-6 justify-center mb-6 border-b border-white/10 pb-4 w-full">
-        <button
-          type="button"
-          onClick={() => { playBeep("click"); setEtMobileTab("list"); }}
-          className={cn(
-            "font-mono text-[10px] tracking-[0.25em] uppercase transition-all pb-1",
-            etMobileTab === "list" ? "text-white border-b border-white font-medium" : "text-zinc-500 hover:text-zinc-300"
-          )}
-        >
-          List
-        </button>
-        <button
-          type="button"
-          onClick={() => { playBeep("click"); setEtMobileTab("add"); }}
-          className={cn(
-            "font-mono text-[10px] tracking-[0.25em] uppercase transition-all pb-1",
-            etMobileTab === "add" ? "text-white border-b border-white font-medium" : "text-zinc-500 hover:text-zinc-300"
-          )}
-        >
-          {editId ? "Edit" : "Add"}
-        </button>
-        <button
-          type="button"
-          onClick={() => { playBeep("click"); setEtMobileTab("chart"); }}
-          className={cn(
-            "font-mono text-[10px] tracking-[0.25em] uppercase transition-all pb-1",
-            etMobileTab === "chart" ? "text-white border-b border-white font-medium" : "text-zinc-500 hover:text-zinc-300"
-          )}
-        >
-          Chart
-        </button>
-      </div>
+      <TabBar
+        tabs={[
+          { id: "list", label: "List" },
+          { id: "add", label: editId ? "Edit" : "Add" },
+          { id: "chart", label: "Chart" }
+        ]}
+        active={etMobileTab}
+        onChange={(id) => setEtMobileTab(id as "list" | "add" | "chart")}
+        variant="underline"
+        className="flex lg:hidden items-center justify-center mb-6 border-b border-white/10 pb-4 w-full"
+      />
 
-      <div className="et-grid grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
+      <div className="grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)]">
         <div className={cn(
           "flex flex-col gap-4 lg:flex w-full lg:w-auto",
           etMobileTab === "list" || etMobileTab === "add" ? "flex" : "hidden"
         )}>
           <div className={cn("lg:block w-full", etMobileTab === "list" ? "block" : "hidden")}>
-            <section className="border border-white/10 bg-white/[0.03] p-5">
+            <section className={cn(panelClass, "p-5")}>
               <div className="flex items-center justify-between gap-3">
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">Month total</p>
+                <p className="font-mono text-[13px] uppercase tracking-[0.22em] text-zinc-500">Month total</p>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => { playBeep("click"); setSelectedMonth(shiftMonth(selectedMonth, -1)); }}
-                    className="border border-white/10 p-1.5 text-zinc-500 hover:text-white"
+                    className="motion-press min-h-[44px] min-w-[44px] border border-white/10 p-2.5 text-zinc-500 transition-app hover:text-white"
                     aria-label="Previous month"
                   >
                     <ChevronLeft className="size-3.5" />
                   </button>
-                  <span className="min-w-[7.5rem] text-center font-mono text-[10px] uppercase tracking-[0.12em] text-zinc-400">
+                  <span className="min-w-[7.5rem] text-center font-mono text-[13px] uppercase tracking-[0.12em] text-zinc-400">
                     {monthLabel(selectedMonth)}
                   </span>
                   <button
                     type="button"
                     onClick={() => { playBeep("click"); setSelectedMonth(shiftMonth(selectedMonth, 1)); }}
-                    className="border border-white/10 p-1.5 text-zinc-500 hover:text-white"
+                    className="motion-press min-h-[44px] min-w-[44px] border border-white/10 p-2.5 text-zinc-500 transition-app hover:text-white"
                     aria-label="Next month"
                   >
                     <ChevronRight className="size-3.5" />
@@ -454,13 +430,13 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
 
               {(typeFilter || categoryFilter) && (
                 <div className="mt-4 flex items-center justify-between border-t border-white/[0.08] pt-4">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                  <span className="font-mono text-[13px] uppercase tracking-[0.15em] text-zinc-500">
                     Filters active
                   </span>
                   <button
                     type="button"
                     onClick={() => { playBeep("click"); setTypeFilter(null); setCategoryFilter(""); }}
-                    className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.12em] text-zinc-600 transition-colors hover:text-white"
+                    className="flex items-center gap-1 font-mono text-[13px] uppercase tracking-[0.12em] text-zinc-600 transition-colors hover:text-white"
                   >
                     Clear
                     <X className="size-3" />
@@ -471,18 +447,17 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
           </div>
 
           <div className={cn("lg:block w-full", etMobileTab === "add" ? "block" : "hidden")}>
-            <section className="border border-white/10 bg-white/[0.03] p-5">
-              <div className="mb-5 flex items-center gap-3">
-                {editId ? <Pencil className="size-4 text-zinc-400" strokeWidth={1.4} /> : <Plus className="size-4 text-zinc-400" strokeWidth={1.4} />}
-                <h2 className="font-mono text-xs uppercase tracking-[0.28em] text-white">
-                  {editId ? "Edit expense" : "New expense"}
-                </h2>
-              </div>
+            <section className={cn(panelClass, "p-5")}>
+              <SectionHeader
+                title={editId ? "Edit expense" : "New expense"}
+                icon={editId ? <Pencil className="size-4" strokeWidth={1.4} /> : <Plus className="size-4" strokeWidth={1.4} />}
+                borderless
+                className="mb-5"
+              />
 
-              <form onSubmit={handleSubmit} className="et-control-grid" noValidate>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="block">
-                    <span className={labelClass}>Amount</span>
+                  <FormField label="Amount">
                     <input
                       ref={formAmountRef}
                       type="text"
@@ -494,20 +469,18 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                       className={fieldClass}
                       placeholder="42"
                     />
-                  </label>
-                  <label className="block">
-                    <span className={labelClass}>Type</span>
+                  </FormField>
+                  <FormField label="Type">
                     <select value={formType} onChange={(e) => setFormType(e.target.value as ExpenseType)} className={fieldClass}>
                       {EXPENSE_TYPES.map((t) => (
                         <option key={t} value={t}>{TYPE_LABELS[t]}</option>
                       ))}
                     </select>
-                  </label>
+                  </FormField>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="block">
-                    <span className={labelClass}>Date</span>
+                  <FormField label="Date">
                     <input
                       type="date"
                       value={formDate}
@@ -516,9 +489,8 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                       disabled={recurringEnabled && !editId}
                       className={fieldClass}
                     />
-                  </label>
-                  <label className="block">
-                    <span className={labelClass}>Category</span>
+                  </FormField>
+                  <FormField label="Category">
                     <select
                       value={formCategory}
                       onChange={(e) => { setFormError(null); setFormCategory(e.target.value); }}
@@ -532,17 +504,16 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                         <option value={formCategory}>{formCategory}</option>
                       )}
                     </select>
-                  </label>
+                  </FormField>
                 </div>
 
-                <label className="block">
-                  <span className={labelClass}>Description (optional)</span>
+                <FormField label="Description (optional)">
                   <input value={formDesc} onChange={(e) => setFormDesc(e.target.value)} className={fieldClass} placeholder="Lunch, Uber ride…" />
-                </label>
+                </FormField>
 
                 {!editId && (
-                  <details className="et-advanced group rounded border border-white/[0.08] bg-black/20">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:text-zinc-300 [&::-webkit-details-marker]:hidden">
+                  <details className="group rounded border border-white/[0.08] bg-black/20">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:text-zinc-300 [&::-webkit-details-marker]:hidden">
                       <span>Advanced — Recurring</span>
                       <ChevronDown className="size-3.5 shrink-0 transition-transform group-open:rotate-180" strokeWidth={1.5} />
                     </summary>
@@ -557,13 +528,13 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                           }}
                           className="size-3.5 accent-white"
                         />
-                        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-zinc-400">
+                        <span className="font-mono text-[13px] uppercase tracking-[0.12em] text-zinc-400">
                           Repeat monthly using this form
                         </span>
                       </label>
 
                       {recurringEnabled && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <DatePickerField
                             label="Start date"
                             value={recurringStartDate}
@@ -600,21 +571,21 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                 )}
 
                 {formError && (
-                  <p className="rounded border border-red-400/25 bg-red-400/[0.06] px-3 py-2 font-mono text-[11px] leading-5 text-red-300/90">
+                  <p className="rounded border border-red-400/25 bg-red-400/[0.06] px-3 py-2 font-mono text-[13px] leading-5 text-red-300/90">
                     {formError}
                   </p>
                 )}
 
                 <div className="flex gap-3 pt-1">
                   {editId && (
-                    <button type="button" onClick={clearForm} className="flex-1 border border-white/10 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:border-white/30 hover:text-white">
+                    <button type="button" onClick={clearForm} className="flex-1 border border-white/10 px-4 py-3 font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:border-white/30 hover:text-white">
                       Cancel
                     </button>
                   )}
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="flex flex-1 items-center justify-center gap-2 border border-white/10 bg-white px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-black transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-45"
+                    className="flex flex-1 items-center justify-center gap-2 border border-white/10 bg-white px-4 py-3 font-mono text-[13px] uppercase tracking-[0.2em] text-black transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-45"
                   >
                     {submitting ? <Loader2 className="size-3.5 animate-spin" /> : editId ? <Pencil className="size-3.5" /> : <Plus className="size-3.5" />}
                     {editId ? "Save changes" : recurringEnabled ? "Add recurring" : "Add expense"}
@@ -630,11 +601,11 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
           etMobileTab === "list" || etMobileTab === "chart" ? "flex" : "hidden"
         )}>
           <div className={cn("lg:block w-full", etMobileTab === "chart" ? "block" : "hidden")}>
-            <section className="border border-white/10 bg-white/[0.03] p-5">
+            <section className={cn(panelClass, "p-5")}>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <BarChart3 className="size-4 text-zinc-500" strokeWidth={1.4} />
-                  <h2 className="font-mono text-xs uppercase tracking-[0.28em] text-white">Spending chart</h2>
+                  <h2 className="font-mono text-sm uppercase tracking-[0.28em] text-white">Spending chart</h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {(["day", "type", "category"] as ChartGroupBy[]).map((g) => (
@@ -643,7 +614,7 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                       type="button"
                       onClick={() => { playBeep("click"); setChartGroupBy(g); }}
                       className={cn(
-                        "border px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.12em] transition-colors",
+                        "border px-2.5 py-1 font-mono text-[13px] uppercase tracking-[0.12em] transition-colors",
                         chartGroupBy === g ? "border-white/30 bg-white/[0.08] text-white" : "border-white/10 text-zinc-600 hover:text-zinc-300"
                       )}
                     >
@@ -653,7 +624,7 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                   <select
                     value={categoryFilter}
                     onChange={(e) => { playBeep("click"); setCategoryFilter(e.target.value); }}
-                    className="border border-white/10 bg-black px-2 py-1 font-mono text-[9px] uppercase tracking-[0.1em] text-zinc-400 outline-none"
+                    className="border border-white/10 bg-black px-2 py-1 font-mono text-[13px] uppercase tracking-[0.1em] text-zinc-400 outline-none"
                   >
                     <option value="">All categories</option>
                     {EXPENSE_CATEGORIES.map((c) => (
@@ -667,30 +638,29 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
           </div>
 
           <div className={cn("flex flex-col flex-1 lg:flex w-full", etMobileTab === "list" ? "flex" : "hidden")}>
-            <section className="et-list-panel flex flex-1 flex-col border border-white/10 bg-white/[0.03]">
+            <section className={cn(panelClass, "flex flex-1 flex-col p-0")}>
               <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-4">
                 <div className="flex items-center gap-3">
                   <IndianRupee className="size-4 text-zinc-500" strokeWidth={1.4} />
-                  <h2 className="font-mono text-xs uppercase tracking-[0.28em] text-white">
+                  <h2 className="font-mono text-sm uppercase tracking-[0.28em] text-white">
                     {monthLabel(selectedMonth)}
                   </h2>
                 </div>
-                <span className="font-mono text-[10px] tabular-nums text-zinc-600">{expenses.length} shown</span>
+                <span className="font-mono text-[13px] tabular-nums text-zinc-600">{expenses.length} shown</span>
               </div>
 
               {expenses.length === 0 ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-                  <div className="flex size-14 items-center justify-center rounded-full border border-white/10 bg-black/40">
-                    <IndianRupee className="size-6 text-zinc-600" strokeWidth={1.2} />
-                  </div>
-                  <p className="text-sm text-zinc-300">No expenses for {monthLabel(selectedMonth)}.</p>
-                </div>
+                <EmptyState
+                  icon={<IndianRupee />}
+                  message={`No expenses for ${monthLabel(selectedMonth)}.`}
+                  className="flex-1 py-16"
+                />
               ) : (
                 <div className="flex-1 overflow-y-auto">
-                  <div className="sticky top-0 z-10 et-list-header gap-3 border-b border-white/[0.06] bg-[#09090e] px-5 py-2.5">
-                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-600">Description</span>
-                    <span className="text-right font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-600">Date</span>
-                    <span className="text-right font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-600">Amount</span>
+                  <div className="sticky top-0 z-10 grid grid-cols-[1fr_auto_auto_2rem] items-center gap-3 border-b border-white/[0.06] bg-[#09090e] px-5 py-2.5 max-sm:hidden">
+                    <span className="font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-600">Description</span>
+                    <span className="text-right font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-600">Date</span>
+                    <span className="text-right font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-600">Amount</span>
                     <span />
                   </div>
                   {expenses.map((exp) => (
@@ -706,31 +676,31 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                           editExpense(exp);
                         }
                       }}
-                      className="group et-list-row cursor-pointer items-center gap-3 border-b border-white/[0.04] px-5 py-3.5 transition-colors hover:bg-white/[0.03] focus-visible:bg-white/[0.03] focus-visible:outline-none"
+                      className="group grid cursor-pointer grid-cols-1 items-center gap-3 border-b border-white/[0.04] px-5 py-3.5 transition-colors hover:bg-white/[0.03] focus-visible:bg-white/[0.03] focus-visible:outline-none sm:grid-cols-[1fr_auto_auto_2rem]"
                     >
-                      <div className="min-w-0 et-row-desc">
+                      <div className="min-w-0 sm:col-span-1">
                         <div className="flex items-center gap-2.5">
                           <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: TYPE_COLORS[exp.type] }} aria-hidden />
                           <span className="truncate text-sm text-zinc-100">{exp.description || exp.category || "—"}</span>
                           {exp.recurringId && (
-                            <span className="shrink-0 rounded border border-white/10 px-1 py-0.5 font-mono text-[8px] uppercase tracking-[0.08em] text-zinc-500">
+                            <span className="shrink-0 rounded border border-white/10 px-1 py-0.5 font-mono text-[13px] uppercase tracking-[0.08em] text-zinc-500">
                               Recurring
                             </span>
                           )}
                         </div>
                         {exp.category && (
                           <div className="mt-1.5 pl-[18px]">
-                            <span className="rounded border border-white/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-zinc-500">
+                            <span className="rounded border border-white/10 px-1.5 py-0.5 font-mono text-[13px] uppercase tracking-[0.08em] text-zinc-500">
                               {exp.category}
                             </span>
                           </div>
                         )}
                       </div>
-                      <div className="et-row-details flex items-center justify-between w-full sm:contents">
-                        <span className="et-row-date text-right font-mono text-[10px] leading-4 text-zinc-500 sm:text-right">
+                      <div className="flex w-full items-center justify-between sm:contents">
+                        <span className="text-right font-mono text-[13px] leading-4 text-zinc-500">
                           {formatExpenseDate(exp.date)}
                         </span>
-                        <span className="et-row-amount text-right font-mono text-sm tabular-nums text-white sm:text-right">
+                        <span className="text-right font-mono text-sm tabular-nums text-white">
                           {formatCurrency(exp.amount)}
                         </span>
                       </div>
@@ -738,7 +708,7 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                         type="button"
                         aria-label={`Delete ${exp.description || "expense"}`}
                         onClick={(e) => { e.stopPropagation(); handleDelete(exp.id); }}
-                        className="et-row-delete flex justify-center text-zinc-700 opacity-0 transition-all hover:text-red-400 focus-visible:opacity-100 group-hover:opacity-100"
+                        className="flex justify-center text-zinc-700 opacity-0 transition-all hover:text-red-400 focus-visible:opacity-100 group-hover:opacity-100 sm:opacity-0"
                       >
                         <Trash2 className="size-3.5" />
                       </button>
@@ -761,19 +731,19 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
                     }}
                     placeholder="/add 42 need Lunch · /help"
                     aria-label="Expense command input"
-                    className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-white outline-none placeholder:text-zinc-700"
+                    className="min-w-0 flex-1 bg-transparent font-mono text-sm text-white outline-none placeholder:text-zinc-700"
                   />
                   {cmdValue && (
                     <button type="button" onClick={() => setCmdValue("")} className="text-zinc-600 transition-colors hover:text-white" aria-label="Clear command">
                       <X className="size-3.5" />
                     </button>
                   )}
-                  <button type="button" onClick={handleCommand} className="shrink-0 border border-white/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-zinc-500 transition-colors hover:border-white/25 hover:text-white">
+                  <button type="button" onClick={handleCommand} className="shrink-0 border border-white/10 px-3 py-1.5 font-mono text-[13px] uppercase tracking-[0.15em] text-zinc-500 transition-colors hover:border-white/25 hover:text-white">
                     Run
                   </button>
                 </div>
                 {cmdError && (
-                  <div className="max-h-28 overflow-y-auto whitespace-pre-wrap border-t border-red-400/20 bg-red-400/[0.04] px-4 py-2.5 font-mono text-[11px] leading-5 text-red-300/80">
+                  <div className="max-h-28 overflow-y-auto whitespace-pre-wrap border-t border-red-400/20 bg-red-400/[0.04] px-4 py-2.5 font-mono text-[13px] leading-5 text-red-300/80">
                     {cmdError}
                   </div>
                 )}
@@ -782,6 +752,6 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </ModuleShell>
   );
 }
