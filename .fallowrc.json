@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.fallow.tools/schema.json",
+  "entry": [
+    "dev.ts",
+    "client/src/main.tsx",
+    "server/index.ts"
+  ],
+  "ignorePatterns": [
+    ".opencode/**",
+    ".cursor/**",
+    ".agents/**",
+    ".claude/**",
+    ".gemini/**",
+    ".commandcode/**",
+    ".impeccable/**",
+    "graphify-out/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**"
+  ],
+  "health": {
+    "maxCyclomatic": 60,
+    "maxCognitive": 160,
+    "maxCrap": 5000
+  }
+}
