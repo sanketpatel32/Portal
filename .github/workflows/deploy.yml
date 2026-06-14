@@ -51,7 +51,10 @@ jobs:
           # Shared: the validation/ folder holds the actual .ts schemas.
           cp shared/package.json stage/shared/
           cp shared/validation/*.ts stage/shared/validation/
-          # Built client (SPA bundle from the previous step).
+          # Built client (SPA bundle from the previous step) + its manifest
+          # so the root workspace declaration resolves during bun install.
+          # (client has only devDependencies, so --production skips them.)
+          cp client/package.json stage/client/
           cp -r client/dist/. stage/client/dist/
           # Deploy artifacts + workspace manifests + lockfile.
           cp deploy/auraflow.service stage/deploy/
