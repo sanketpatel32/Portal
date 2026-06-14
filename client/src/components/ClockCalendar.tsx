@@ -16,7 +16,7 @@ import { toLocalDateInput, parseLocalDate, calendarMonthRange } from "@/componen
 import { createClockTodoSchema } from "@shared/validation/models";
 import { validateInput } from "@/lib/form-validation";
 import { AppButton } from "./ui/AppButton";
-import { TimePicker } from "./ui/TimePicker";
+import { DateTimePicker } from "./ui/DateTimePicker";
 
 type ClockTodo = {
   id: string;
@@ -220,19 +220,14 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
     );
   }
 
-  const selectedDateLabel = selectedDate
-    ? selectedDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
-    : null;
-
   return (
     <div className="w-full max-w-3xl animate-fade-in select-none">
       <div className="mx-auto mb-10 w-full max-w-[20.5rem] overflow-visible sm:max-w-[22rem]">
         <Calendar
           mode="single"
-          selected={selectedDate}
+          selected={selectedDate ?? undefined}
           month={viewMonth}
           onMonthChange={setViewMonth}
-          defaultMonth={selectedDate ?? now}
           captionLayout="label"
           startMonth={startMonth}
           endMonth={endMonth}
@@ -270,13 +265,14 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
           className={underlineFieldClass}
         />
         <div className="flex shrink-0 items-center gap-3 sm:gap-4">
-          <span
-            className="whitespace-nowrap font-mono text-[12px] uppercase tracking-[0.18em] text-zinc-600"
-            title="Selected date"
-          >
-            {selectedDateLabel ?? "Pick date"}
-          </span>
-          <TimePicker value={dueTime} onChange={setDueTime} />
+          <DateTimePicker
+            date={dueDate}
+            time={dueTime}
+            onDateChange={setDueDate}
+            onTimeChange={setDueTime}
+            startMonth={calendarMonthRange(now).startMonth}
+            endMonth={calendarMonthRange(now).endMonth}
+          />
           <AppButton
             type="submit"
             variant="icon"

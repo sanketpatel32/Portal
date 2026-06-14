@@ -3,10 +3,10 @@ import { LogOut } from "lucide-react";
 import type { AppOneSubappId } from "./types/app";
 import { playBeep } from "./lib/audio";
 import {
-  clearNavigationHash,
-  parseNavigationFromHash,
+  clearNavigationPath,
+  parseNavigationFromPath,
   readInitialNavigation,
-  updateNavigationHash,
+  updateNavigationPath,
 } from "./lib/app-navigation";
 import { PinLockScreen } from "./components/PinLockScreen";
 import { NewtonsCradle } from "./components/NewtonsCradle";
@@ -51,12 +51,12 @@ function App() {
   const [activeSubapp, setActiveSubapp] = useState<AppOneSubappId | null>(initialNavigation.activeSubapp);
 
   useEffect(() => {
-    updateNavigationHash(activeApp, activeSubapp);
+    updateNavigationPath(activeApp, activeSubapp);
   }, [activeApp, activeSubapp]);
 
   useEffect(() => {
     const onPopState = () => {
-      const navigation = parseNavigationFromHash(window.location.hash);
+      const navigation = parseNavigationFromPath(window.location.pathname);
       setActiveApp(navigation.activeApp);
       setActiveSubapp(navigation.activeSubapp);
     };
@@ -73,7 +73,7 @@ function App() {
     setIsUnlocked(false);
     setActiveApp(null);
     setActiveSubapp(null);
-    clearNavigationHash();
+    clearNavigationPath();
   };
 
   const renderSubappPlaceholder = (title: string) => (

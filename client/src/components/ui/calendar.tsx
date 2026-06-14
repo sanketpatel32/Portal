@@ -201,6 +201,9 @@ function CalendarDayButton({
     !modifiers.range_end &&
     !modifiers.range_middle
 
+  const isToday = Boolean(modifiers.today)
+  const isTodaySelected = isToday && isSelected
+
   return (
     <button
       ref={ref}
@@ -211,11 +214,15 @@ function CalendarDayButton({
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
       className={cn(
-        "relative mx-auto flex size-8 items-center justify-center rounded-full border-0 bg-transparent p-0 text-sm font-normal leading-none transition-app",
+        "relative flex size-full aspect-square h-full w-full items-center justify-center rounded-full border-0 bg-transparent p-0 text-sm font-normal leading-none transition-app",
         "hover:bg-white/[0.07] hover:text-white",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25",
-        isSelected && "bg-white text-black hover:bg-white hover:text-black",
-        modifiers.today && !isSelected && "text-white ring-1 ring-inset ring-white/20",
+        // Plain selected day — solid white pill
+        isSelected && !isToday && "bg-white text-black hover:bg-white hover:text-black",
+        // Today (not selected) — outlined pill with brighter text
+        isToday && !isSelected && "text-white ring-1 ring-inset ring-white/40",
+        // Today + selected — accent: white fill + bold + ember dot on top
+        isTodaySelected && "bg-white font-semibold text-black hover:bg-white hover:text-black",
         modifiers.outside && "text-zinc-700 opacity-60",
         modifiers.disabled && "opacity-35",
         modifiers.scheduled && !isSelected && "font-medium text-zinc-200",
@@ -225,11 +232,22 @@ function CalendarDayButton({
       {...props}
     >
       {children}
+      {/* Today marker — small dot at top-right corner */}
+      {isToday && (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute right-1 top-1 size-1 rounded-full",
+            isSelected ? "bg-black" : "bg-white",
+          )}
+        />
+      )}
+      {/* Scheduled marker — small dot at bottom center */}
       {modifiers.scheduled && !modifiers.outside && (
         <span
           aria-hidden
           className={cn(
-            "pointer-events-none absolute bottom-0.5 left-1/2 size-1 -translate-x-1/2 rounded-full",
+            "pointer-events-none absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full",
             isSelected ? "bg-black/60" : "bg-white/40",
           )}
         />

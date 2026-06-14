@@ -242,7 +242,7 @@ export const ClockTimerAlarm: React.FC<ClockTimerAlarmProps> = ({
           ) : activeTab === "alarm" ? (
             // Alarm Mode
             <div className="flex flex-col items-center justify-center w-full select-none animate-fade-in">
-              <div className="wheel-picker-responsive-wrap">
+              <div className="flex flex-nowrap items-center justify-center gap-2 w-full">
                 <WheelPicker
                   min={0}
                   max={23}
@@ -352,7 +352,7 @@ export const ClockTimerAlarm: React.FC<ClockTimerAlarmProps> = ({
               ) : (
                 // Timer setup layout
                 <div className="flex flex-col items-center justify-center w-full">
-                  <div className="wheel-picker-responsive-wrap">
+                  <div className="flex flex-nowrap items-center justify-center gap-2 w-full">
                     <WheelPicker
                       min={0}
                       max={23}

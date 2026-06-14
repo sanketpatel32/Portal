@@ -21,8 +21,8 @@ function isValidSubappId(value: string): value is AppOneSubappId {
   return VALID_SUBAPP_IDS.has(value as AppOneSubappId);
 }
 
-export function parseNavigationFromHash(hash: string): AppNavigation {
-  const path = hash.replace(/^#/, "").replace(/^\//, "");
+export function parseNavigationFromPath(pathname: string): AppNavigation {
+  const path = pathname.replace(/^\//, "");
   if (!path) {
     return { activeApp: null, activeSubapp: null };
   }
@@ -45,30 +45,30 @@ export function parseNavigationFromHash(hash: string): AppNavigation {
   return { activeApp: appNum, activeSubapp: null };
 }
 
-export function navigationToHash(
+export function navigationToPath(
   activeApp: number | null,
   activeSubapp: AppOneSubappId | null,
 ): string {
   if (activeApp === null) {
-    return "";
+    return "/";
   }
   if (activeSubapp) {
-    return `#/app/${activeApp}/${activeSubapp}`;
+    return `/app/${activeApp}/${activeSubapp}`;
   }
-  return `#/app/${activeApp}`;
+  return `/app/${activeApp}`;
 }
 
-export function updateNavigationHash(
+export function updateNavigationPath(
   activeApp: number | null,
   activeSubapp: AppOneSubappId | null,
   replace = false,
 ): void {
-  const next = navigationToHash(activeApp, activeSubapp);
-  if (window.location.hash === next) {
+  const next = navigationToPath(activeApp, activeSubapp);
+  if (window.location.pathname === next) {
     return;
   }
 
-  const url = `${window.location.pathname}${window.location.search}${next}`;
+  const url = `${next}${window.location.search}`;
   if (replace) {
     window.history.replaceState(null, "", url);
   } else {
@@ -76,11 +76,11 @@ export function updateNavigationHash(
   }
 }
 
-export function clearNavigationHash(): void {
-  const url = `${window.location.pathname}${window.location.search}`;
+export function clearNavigationPath(): void {
+  const url = `${window.location.origin}/${window.location.search}`;
   window.history.replaceState(null, "", url);
 }
 
 export function readInitialNavigation(): AppNavigation {
-  return parseNavigationFromHash(window.location.hash);
+  return parseNavigationFromPath(window.location.pathname);
 }
