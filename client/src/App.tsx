@@ -19,6 +19,7 @@ import { PostmanClient } from "./components/PostmanClient";
 import { WritingAgent } from "./components/WritingAgent";
 import { BookmarkManager } from "./components/BookmarkManager";
 import { ModuleHeaderBar } from "./components/ui/ModuleHeaderBar";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import { cn } from "./lib/utils";
 
 const placeholderSubappIds = new Set<AppOneSubappId>(["subapp8", "subapp9", "subapp10"]);
@@ -160,14 +161,22 @@ function App() {
                 playBeep={playBeep}
               />
             ) : activeSubapp === "postman" ? (
-              <PostmanClient
-                token={token!}
+              <ErrorBoundary
+                label="Postman"
                 onBack={() => {
                   playBeep("click");
                   setActiveSubapp(null);
                 }}
-                playBeep={playBeep}
-              />
+              >
+                <PostmanClient
+                  token={token!}
+                  onBack={() => {
+                    playBeep("click");
+                    setActiveSubapp(null);
+                  }}
+                  playBeep={playBeep}
+                />
+              </ErrorBoundary>
             ) : activeSubapp === "writing-agent" ? (
               <WritingAgent
                 token={token!}
