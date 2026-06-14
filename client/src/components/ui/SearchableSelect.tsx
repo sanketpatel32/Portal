@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fieldClass } from "@/lib/form-styles";
+import { monoInputSmClass } from "@/lib/ui-classes";
 
 export type SearchableSelectOption = {
   value: string;
@@ -14,6 +15,7 @@ type SearchableSelectProps = {
   options: SearchableSelectOption[] | string[];
   placeholder?: string;
   className?: string;
+  inputSize?: "md" | "sm";
   disabled?: boolean;
 };
 
@@ -29,6 +31,7 @@ export function SearchableSelect({
   options,
   placeholder = "Select an option",
   className,
+  inputSize = "md",
   disabled = false,
 }: SearchableSelectProps) {
   const listboxId = useId();
@@ -146,7 +149,7 @@ export function SearchableSelect({
           }}
           onKeyDown={handleInputKeyDown}
           className={cn(
-            fieldClass,
+            inputSize === "sm" ? monoInputSmClass : fieldClass,
             "pr-10",
             disabled && "cursor-not-allowed opacity-50",
             !open && !selectedOption && "text-zinc-600",

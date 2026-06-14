@@ -8,6 +8,7 @@ import { handleSql } from "./sql";
 import { handleNosql } from "./nosql";
 import { handlePostman } from "./postman";
 import { handleWriting } from "./writing";
+import { handleBookmarks } from "./bookmark";
 import { handleMetrics } from "./metrics";
 
 export const routeHandlers: RouteHandler[] = [
@@ -21,4 +22,5 @@ export const routeHandlers: RouteHandler[] = [
   handleNosql,
   handlePostman,
   handleWriting,
+  handleBookmarks,
 ];

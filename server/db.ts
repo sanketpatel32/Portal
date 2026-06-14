@@ -251,3 +251,29 @@ export function parseClockTodoDeadline(value: string, allDay: boolean): Date {
   }
   return parsed;
 }
+
+// ── Bookmark (website link saver) ───────────────────────────────
+
+export interface IBookmarkDocument extends mongoose.Document {
+  url: string;
+  title: string;
+  tag: string;
+  favorite: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const bookmarkSchema = new mongoose.Schema<IBookmarkDocument>(
+  {
+    url: { type: String, required: true, trim: true, index: true },
+    title: { type: String, required: true, default: "", trim: true },
+    tag: { type: String, required: true, default: "Reading", trim: true, index: true },
+    favorite: { type: Boolean, default: false, index: true },
+  },
+  {
+    timestamps: true,
+    toJSON: standardMongooseToJson,
+  }
+);
+
+export const BookmarkModel = mongoose.model<IBookmarkDocument>("Bookmark", bookmarkSchema);

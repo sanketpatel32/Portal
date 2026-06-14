@@ -17,6 +17,7 @@ import { NoSqlClient } from "./components/NoSqlClient";
 import { SqlClient } from "./components/SqlClient";
 import { PostmanClient } from "./components/PostmanClient";
 import { WritingAgent } from "./components/WritingAgent";
+import { BookmarkManager } from "./components/BookmarkManager";
 import { ModuleHeaderBar } from "./components/ui/ModuleHeaderBar";
 import { cn } from "./lib/utils";
 
@@ -113,8 +114,8 @@ function App() {
         <div
           className={cn(
             "absolute inset-0 z-30 flex flex-col items-stretch bg-black p-3 font-sans justify-start sm:p-6",
-            (activeSubapp === "nosql-client" || activeSubapp === "subapp4" || activeSubapp === "postman" || activeSubapp === "writing-agent") 
-              ? "overflow-hidden" 
+            (activeSubapp === "nosql-client" || activeSubapp === "subapp4" || activeSubapp === "postman" || activeSubapp === "writing-agent") || activeApp === 3
+              ? "overflow-hidden"
               : "overflow-x-hidden overflow-y-auto"
           )}
         >
@@ -208,6 +209,16 @@ function App() {
                 </div>
               </div>
             )
+          ) : activeApp === 3 ? (
+            // Bookmark — website link saver
+            <BookmarkManager
+              token={token!}
+              onBack={() => {
+                playBeep("click");
+                setActiveApp(null);
+              }}
+              playBeep={playBeep}
+            />
           ) : (
             // Default App Subpages (APP 3 Under Development)
             <div className="w-full max-w-3xl flex flex-col items-center animate-scale-up px-2">

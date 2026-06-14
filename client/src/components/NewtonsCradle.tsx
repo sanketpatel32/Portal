@@ -508,7 +508,7 @@ export const NewtonsCradle: React.FC<NewtonsCradleProps> = ({
         ctx.shadowBlur = 4;
         ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
         
-        const labels = ["DEVELOPER", "TIME & CAL", "DATABASE"];
+        const labels = ["DEVELOPER", "TIME & CAL", "BOOKMARK"];
         ctx.fillText(labels[i], x, y);
         ctx.restore();
       }

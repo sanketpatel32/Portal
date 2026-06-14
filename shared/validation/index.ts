@@ -6,4 +6,5 @@ export * from "./nosql";
 export * from "./writing";
 export * from "./postman";
 export * from "./query";
+export * from "./bookmark";
 export * from "./websocket";
