@@ -92,12 +92,12 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no auraflow@${{ secrets.VPS_HOST }} '
             set -e
             cd /opt/auraflow
-            /home/auraflow/.bun/bin/bun install --frozen-lockfile --production
+            /usr/local/bin/bun install --frozen-lockfile --production
             # Refresh the systemd unit if it changed in this push, then restart.
             sudo cp /opt/auraflow/deploy/auraflow.service /etc/systemd/system/auraflow.service
             sudo systemctl daemon-reload
             sudo systemctl restart auraflow
-            sleep 2
+            sleep 3
             sudo systemctl is-active auraflow
           '
 

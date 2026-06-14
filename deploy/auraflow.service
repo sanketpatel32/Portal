@@ -12,8 +12,11 @@ WorkingDirectory=/opt/auraflow
 
 # `bun --smol` shrinks the baseline heap and disables Bun's JIT-forced-opts,
 # trading a little throughput for ~30-50MB lower RSS — important on a 1GB box.
-# `start` (from package.json) is just: bun --smol run server/index.ts
-ExecStart=/home/auraflow/.bun/bin/bun --smol run server/index.ts
+# `start` (from package.json) is just: bun --smol run server/index.ts.
+# Bun is installed at /usr/local/bin/bun (a real copy, not a /home symlink)
+# because ProtectHome=true below masks /home, which would otherwise cause
+# systemd's 203/EXEC when ExecStart points into the per-user install.
+ExecStart=/usr/local/bin/bun --smol run server/index.ts
 
 # Restart policy: recover from crashes but don't thrash if it's wedged.
 Restart=always
