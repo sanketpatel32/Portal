@@ -77,9 +77,13 @@ jobs:
 
       - name: Sync files to VPS
         # --delete keeps the VPS tree in lockstep with the repo (removed files
-        # actually get removed). Trailing slash on stage/ copies contents.
+        # actually get removed). The filter PROTECTS server/.env on the VPS —
+        # it holds secrets that live only on the box and are never shipped
+        # from CI, so it must not be deleted by --delete. Trailing slash on
+        # stage/ copies its contents.
         run: |
           rsync -azp --delete \
+            --filter='protect /server/.env' \
             -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
             stage/ auraflow@${{ secrets.VPS_HOST }}:/opt/auraflow/
 
