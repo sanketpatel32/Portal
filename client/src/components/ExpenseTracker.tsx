@@ -50,6 +50,12 @@ import {
   toLocalDateInput,
 } from "./expense/shared";
 import { deleteExpense, readApiError } from "./expense/api";
+import {
+  createExpenseSchema,
+  createRecurringExpenseSchema,
+  updateExpenseSchema,
+} from "@shared/validation/models";
+import { validateInput } from "@/lib/form-validation";
 
 type Props = {
   token: string;
@@ -208,44 +214,30 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
     setFormError(null);
 
     const amount = parseWholeAmount(formAmount);
-    if (amount === null) {
-      setFormError("Enter a whole-number amount of at least 1.");
-      playBeep("error");
-      return;
-    }
-    if (!formCategory) {
-      setFormError("Select a category.");
-      playBeep("error");
-      return;
-    }
-
     const isRecurringSubmit = recurringEnabled && !editId;
-    if (!isRecurringSubmit && !formDate) {
-      setFormError("Date is required.");
-      playBeep("error");
-      return;
-    }
-    if (isRecurringSubmit && !recurringStartDate) {
-      setFormError("Pick a start date for the recurring expense.");
-      playBeep("error");
-      return;
-    }
 
-    setSubmitting(true);
-    try {
-      if (isRecurringSubmit) {
+    if (isRecurringSubmit) {
+      const validated = validateInput(createRecurringExpenseSchema, {
+        amount: amount ?? formAmount,
+        description: formDesc.trim(),
+        type: formType,
+        category: formCategory,
+        startDate: recurringStartDate,
+        monthCount: recurringDuration === "forever" ? null : Number.parseInt(recurringDuration, 10),
+        active: true,
+      });
+      if (!validated.ok) {
+        setFormError(validated.message);
+        playBeep("error");
+        return;
+      }
+
+      setSubmitting(true);
+      try {
         const res = await fetch(`${env.VITE_API_URL}/api/expenses/recurring`, {
           method: "POST",
           headers: apiHeaders,
-          body: JSON.stringify({
-            amount,
-            description: formDesc.trim(),
-            type: formType,
-            category: formCategory,
-            startDate: recurringStartDate,
-            monthCount: recurringDuration === "forever" ? null : Number.parseInt(recurringDuration, 10),
-            active: true,
-          }),
+          body: JSON.stringify(validated.data),
         });
         if (res.ok) {
           playBeep("success");
@@ -255,24 +247,39 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
           setFormError(await readApiError(res, "Could not save recurring expense. Try again."));
           playBeep("error");
         }
-        return;
+      } catch {
+        setFormError("Network error. Check that the server is running.");
+        playBeep("error");
+      } finally {
+        setSubmitting(false);
       }
+      return;
+    }
 
-      const body = {
-        amount,
-        description: formDesc.trim(),
-        type: formType,
-        category: formCategory,
-        tags: [],
-        date: formDate,
-      };
+    const expensePayload = {
+      amount: amount ?? formAmount,
+      description: formDesc.trim(),
+      type: formType,
+      category: formCategory,
+      tags: [] as string[],
+      date: formDate,
+    };
+    const validated = validateInput(editId ? updateExpenseSchema : createExpenseSchema, expensePayload);
+    if (!validated.ok) {
+      setFormError(validated.message);
+      playBeep("error");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
       const url = editId
         ? `${env.VITE_API_URL}/api/expenses/${editId}`
         : `${env.VITE_API_URL}/api/expenses`;
       const res = await fetch(url, {
         method: editId ? "PUT" : "POST",
         headers: apiHeaders,
-        body: JSON.stringify(body),
+        body: JSON.stringify(validated.data),
       });
       if (res.ok) {
         playBeep("success");

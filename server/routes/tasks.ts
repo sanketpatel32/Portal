@@ -1,6 +1,7 @@
 import { TaskModel, createTaskSchema, updateTaskSchema, isDbConnected } from "../db";
 import { getResponseHeaders } from "../http-context";
-import { invalidObjectIdResponse, validationFailedResponse, readPathId, updateFailureResponse, publishDeleteSuccess } from "./helpers";
+import { invalidObjectIdResponse, updateFailureResponse, publishDeleteSuccess, readPathId } from "./helpers";
+import { parseJsonBody } from "../request-validation";
 import mongoose from "mongoose";
 import type { RouteContext } from "./types";
 
@@ -37,14 +38,12 @@ export async function handleTasks(ctx: RouteContext): Promise<Response | null> {
 
   if (url.pathname === "/api/tasks" && req.method === "POST") {
     try {
-      const body = await req.json();
-
-      const validated = createTaskSchema.safeParse(body);
-      if (!validated.success) {
-        return validationFailedResponse(req, validated.error);
+      const parsed = await parseJsonBody(req, createTaskSchema);
+      if (!parsed.ok) {
+        return parsed.response;
       }
 
-      const newTask = new TaskModel(validated.data);
+      const newTask = new TaskModel(parsed.data);
       await newTask.save();
 
       const taskJSON = newTask.toJSON();
@@ -74,16 +73,14 @@ export async function handleTasks(ctx: RouteContext): Promise<Response | null> {
 
     if (req.method === "PUT") {
       try {
-        const body = await req.json();
-
-        const validated = updateTaskSchema.safeParse(body);
-        if (!validated.success) {
-          return validationFailedResponse(req, validated.error);
+        const parsed = await parseJsonBody(req, updateTaskSchema);
+        if (!parsed.ok) {
+          return parsed.response;
         }
 
         const updatedTask = await TaskModel.findByIdAndUpdate(
           id,
-          { $set: validated.data },
+          { $set: parsed.data },
           { new: true }
         );
 

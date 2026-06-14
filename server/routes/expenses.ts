@@ -10,7 +10,8 @@ import {
 } from "../db";
 import { syncRecurringExpenses, monthRangeFromParam } from "../recurring";
 import { getResponseHeaders } from "../http-context";
-import { invalidObjectIdResponse, validationFailedResponse, readPathId, updateFailureResponse, publishDeleteSuccess } from "./helpers";
+import { invalidObjectIdResponse, updateFailureResponse, publishDeleteSuccess, readPathId } from "./helpers";
+import { parseJsonBody } from "../request-validation";
 import mongoose from "mongoose";
 import type { RouteContext } from "./types";
 
@@ -120,12 +121,11 @@ export async function handleExpenses(ctx: RouteContext): Promise<Response | null
 
   if (url.pathname === "/api/expenses/recurring" && req.method === "POST") {
     try {
-      const body = await req.json();
-      const validated = createRecurringExpenseSchema.safeParse(body);
-      if (!validated.success) {
-        return validationFailedResponse(req, validated.error);
+      const parsed = await parseJsonBody(req, createRecurringExpenseSchema);
+      if (!parsed.ok) {
+        return parsed.response;
       }
-      const { startDate, ...rest } = validated.data;
+      const { startDate, ...rest } = parsed.data;
       const start = parseExpenseDateInput(startDate);
       const dayOfMonth = Math.min(Math.max(start.getDate(), 1), 28);
       const item = await RecurringExpenseModel.create({
@@ -150,12 +150,11 @@ export async function handleExpenses(ctx: RouteContext): Promise<Response | null
     }
     if (req.method === "PUT") {
       try {
-        const body = await req.json();
-        const validated = updateRecurringExpenseSchema.safeParse(body);
-        if (!validated.success) {
-          return validationFailedResponse(req, validated.error);
+        const parsed = await parseJsonBody(req, updateRecurringExpenseSchema);
+        if (!parsed.ok) {
+          return parsed.response;
         }
-        const patch = { ...validated.data } as Record<string, unknown>;
+        const patch = { ...parsed.data } as Record<string, unknown>;
         if (typeof patch.startDate === "string") {
           const start = parseExpenseDateInput(patch.startDate);
           patch.startDate = start;
@@ -254,14 +253,13 @@ export async function handleExpenses(ctx: RouteContext): Promise<Response | null
 
   if (url.pathname === "/api/expenses" && req.method === "POST") {
     try {
-      const body = await req.json();
-      const validated = createExpenseSchema.safeParse(body);
-      if (!validated.success) {
-        return validationFailedResponse(req, validated.error);
+      const parsed = await parseJsonBody(req, createExpenseSchema);
+      if (!parsed.ok) {
+        return parsed.response;
       }
       const exp = new ExpenseModel({
-        ...validated.data,
-        date: parseExpenseDateInput(validated.data.date),
+        ...parsed.data,
+        date: parseExpenseDateInput(parsed.data.date),
       });
       await exp.save();
       const json = exp.toJSON();
@@ -282,12 +280,11 @@ export async function handleExpenses(ctx: RouteContext): Promise<Response | null
     }
     if (req.method === "PUT") {
       try {
-        const body = await req.json();
-        const validated = updateExpenseSchema.safeParse(body);
-        if (!validated.success) {
-          return validationFailedResponse(req, validated.error);
+        const parsed = await parseJsonBody(req, updateExpenseSchema);
+        if (!parsed.ok) {
+          return parsed.response;
         }
-        const update = { ...validated.data };
+        const update = { ...parsed.data };
         if (update.date) (update as Record<string, unknown>).date = parseExpenseDateInput(update.date);
         const updated = await ExpenseModel.findByIdAndUpdate(expenseId, { $set: update }, { new: true });
         if (!updated) {

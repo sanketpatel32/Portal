@@ -1,10 +1,9 @@
 import {
   ClockTodoModel,
   IClockTodoDocument,
-  createClockTodoSchema,
   parseClockTodoDeadline,
-  updateClockTodoSchema,
 } from "./db";
+import type { CreateClockTodoInput, UpdateClockTodoInput } from "../shared/validation/models";
 import {
   createGoogleCalendarEventForTodo,
   deleteGoogleCalendarEvent,
@@ -96,8 +95,7 @@ export async function buildClockAgenda(days = 14): Promise<{
   return { todos: todoItems, events: eventItems, items, googleConnected };
 }
 
-export async function createClockTodo(input: unknown) {
-  const validated = createClockTodoSchema.parse(input);
+export async function createClockTodo(validated: CreateClockTodoInput) {
   const deadline = parseClockTodoDeadline(validated.deadline, validated.allDay);
 
   let googleEventId: string | undefined;
@@ -123,8 +121,7 @@ export async function createClockTodo(input: unknown) {
   return todo.toJSON();
 }
 
-export async function updateClockTodo(id: string, input: unknown) {
-  const validated = updateClockTodoSchema.parse(input);
+export async function updateClockTodo(id: string, validated: UpdateClockTodoInput) {
   const todo = await ClockTodoModel.findById(id);
   if (!todo) {
     throw new Error("Todo not found");

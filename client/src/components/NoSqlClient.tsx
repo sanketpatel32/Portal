@@ -40,6 +40,8 @@ import {
   toolScrollClass,
 } from "@/lib/ui-classes";
 import { parseApiError } from "@/lib/parse-api-error";
+import { validateInput } from "@/lib/form-validation";
+import { mongoDocumentSchema, resourceNameSchema } from "@shared/validation/common";
 import { fetchJsonResource } from "@/lib/fetch-json-resource";
 import { runConnectionTest } from "@/lib/test-db-connection";
 import {
@@ -369,9 +371,9 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
   }, []);
 
   const createDatabase = async () => {
-    const name = newDbName.trim();
-    if (!name) {
-      showError("Enter a database name");
+    const validated = validateInput(resourceNameSchema, { name: newDbName });
+    if (!validated.ok) {
+      showError(validated.message);
       return;
     }
     setSubmitting(true);
@@ -379,7 +381,7 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
       const res = await fetch(`${env.VITE_API_URL}/api/nosql/databases`, {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(validated.data),
       });
       if (res.ok) {
         playBeep("success");
@@ -398,16 +400,16 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
 
   const createCollection = async () => {
     if (view.screen !== "collections") return;
-    const name = newColName.trim();
-    if (!name) {
-      showError("Enter a collection name");
+    const validated = validateInput(resourceNameSchema, { name: newColName });
+    if (!validated.ok) {
+      showError(validated.message);
       return;
     }
     setSubmitting(true);
     try {
       const res = await fetch(
         `${env.VITE_API_URL}/api/nosql/databases/${encodeURIComponent(view.dbName)}/collections`,
-        { method: "POST", headers: getHeaders(), body: JSON.stringify({ name }) }
+        { method: "POST", headers: getHeaders(), body: JSON.stringify(validated.data) }
       );
       if (res.ok) {
         playBeep("success");
@@ -457,16 +459,18 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
           : null;
     if (!ctx) return;
 
-    let parsed: Record<string, unknown>;
+    let parsed: unknown;
     try {
       parsed = JSON.parse(jsonValue);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        setJsonError("Document must be a JSON object");
-        playBeep("error");
-        return;
-      }
     } catch {
       setJsonError("Invalid JSON syntax");
+      playBeep("error");
+      return;
+    }
+
+    const validated = validateInput(mongoDocumentSchema, parsed);
+    if (!validated.ok) {
+      setJsonError(validated.message);
       playBeep("error");
       return;
     }
@@ -477,7 +481,7 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
       if (isEditing && currentDoc) {
         const res = await fetch(
           `${env.VITE_API_URL}/api/nosql/databases/${encodeURIComponent(ctx.dbName)}/collections/${encodeURIComponent(ctx.colName)}/documents/${currentDoc.id}`,
-          { method: "PUT", headers: getHeaders(), body: JSON.stringify(parsed) }
+          { method: "PUT", headers: getHeaders(), body: JSON.stringify(validated.data) }
         );
         if (res.ok) {
           playBeep("success");
@@ -495,7 +499,7 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
       } else {
         const res = await fetch(
           `${env.VITE_API_URL}/api/nosql/databases/${encodeURIComponent(ctx.dbName)}/collections/${encodeURIComponent(ctx.colName)}/documents`,
-          { method: "POST", headers: getHeaders(), body: JSON.stringify(parsed) }
+          { method: "POST", headers: getHeaders(), body: JSON.stringify(validated.data) }
         );
         if (res.ok) {
           playBeep("success");

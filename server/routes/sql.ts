@@ -7,10 +7,11 @@ import {
   maskSqlConnectionString,
   isValidSqlConnectionString,
   isMongoConnectionString,
-  SQL_CONNECTION_REQUIRED,
 } from "../sql-client";
 import { getResponseHeaders } from "../http-context";
-import { connectionTestFailureResponse, invalidObjectIdResponse, validationFailedResponse, readPathId } from "./helpers";
+import { sqlConnectionTestSchema, sqlExecuteSchema } from "../../shared/validation/sql";
+import { connectionTestFailureResponse, errorMessage } from "./helpers";
+import { parseJsonBody } from "../request-validation";
 import type { RouteContext } from "./types";
 
 export async function handleSql(ctx: RouteContext): Promise<Response | null> {
@@ -18,14 +19,12 @@ export async function handleSql(ctx: RouteContext): Promise<Response | null> {
 
   if (url.pathname === "/api/sql/connection/test" && req.method === "POST") {
     try {
-      const body = await req.json().catch(() => ({}));
-      const connectionString = typeof body.connectionString === "string" ? body.connectionString.trim() : typeof body.uri === "string" ? body.uri.trim() : "";
-      if (!connectionString) {
-        return new Response(JSON.stringify({ ok: false, error: SQL_CONNECTION_REQUIRED }), {
-          status: 400,
-          headers: getResponseHeaders(req),
-        });
+      const parsed = await parseJsonBody(req, sqlConnectionTestSchema);
+      if (!parsed.ok) {
+        return parsed.response;
       }
+
+      const connectionString = parsed.data.connectionString;
       if (isMongoConnectionString(connectionString)) {
         return new Response(JSON.stringify({ ok: false, error: sqlConnectionErrorMessage("mongodb") }), {
           status: 400,
@@ -100,15 +99,12 @@ export async function handleSql(ctx: RouteContext): Promise<Response | null> {
 
     if (url.pathname === "/api/sql/execute" && req.method === "POST") {
       try {
-        const body = await req.json();
-        const sql = typeof body.query === "string" ? body.query.trim() : "";
-        if (!sql) {
-          return new Response(JSON.stringify({ error: "Query is empty" }), {
-            status: 400,
-            headers: getResponseHeaders(req),
-          });
+        const parsed = await parseJsonBody(req, sqlExecuteSchema);
+        if (!parsed.ok) {
+          return parsed.response;
         }
-        const result = await executeReadOnlySql(connectionString, sql);
+
+        const result = await executeReadOnlySql(connectionString, parsed.data.query);
         return new Response(JSON.stringify(result), { status: 200, headers: getResponseHeaders(req) });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Query execution failed";

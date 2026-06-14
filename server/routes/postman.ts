@@ -1,6 +1,7 @@
 import { executeProxyRequest } from "../postman-proxy";
-import type { ProxyRequest } from "../postman-proxy";
 import { getResponseHeaders } from "../http-context";
+import { proxyRequestSchema } from "../../shared/validation/postman";
+import { parseJsonBody } from "../request-validation";
 import type { RouteContext } from "./types";
 
 export async function handlePostman(ctx: RouteContext): Promise<Response | null> {
@@ -8,14 +9,12 @@ export async function handlePostman(ctx: RouteContext): Promise<Response | null>
 
   if (url.pathname === "/api/postman/proxy" && req.method === "POST") {
     try {
-      const body = (await req.json().catch(() => ({}))) as Partial<ProxyRequest>;
-      const result = await executeProxyRequest({
-        method: body.method || "GET",
-        url: body.url || "",
-        headers: Array.isArray(body.headers) ? body.headers : [],
-        params: Array.isArray(body.params) ? body.params : [],
-        body: typeof body.body === "string" ? body.body : "",
-      });
+      const parsed = await parseJsonBody(req, proxyRequestSchema);
+      if (!parsed.ok) {
+        return parsed.response;
+      }
+
+      const result = await executeProxyRequest(parsed.data);
       return new Response(JSON.stringify(result), {
         status: 200,
         headers: getResponseHeaders(req),

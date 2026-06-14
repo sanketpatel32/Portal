@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseApiError } from "@/lib/parse-api-error";
+import { validateInput } from "@/lib/form-validation";
+import { proxyRequestSchema } from "@shared/validation/postman";
 import {
   formatToggleClass,
   interactiveRowClass,
@@ -189,9 +191,31 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
   };
 
   const executeRequest = useCallback(async () => {
-    if (!url.trim()) {
+    const payload = {
+      method,
+      url,
+      headers,
+      params,
+      body: ["POST", "PUT", "PATCH", "DELETE"].includes(method) ? body : "",
+    };
+    const validated = validateInput(proxyRequestSchema, payload);
+    if (!validated.ok) {
       playBeep("error");
-      urlRef.current?.focus();
+      if (!url.trim()) {
+        urlRef.current?.focus();
+      }
+      setResponse({
+        ok: false,
+        status: 0,
+        statusText: "Validation Error",
+        headers: {},
+        body: "",
+        bodyTruncated: false,
+        contentType: null,
+        sizeBytes: 0,
+        durationMs: 0,
+        error: validated.message,
+      });
       return;
     }
 
@@ -209,13 +233,7 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          method,
-          url,
-          headers,
-          params,
-          body: ["POST", "PUT", "PATCH", "DELETE"].includes(method) ? body : "",
-        }),
+        body: JSON.stringify(validated.data),
       });
 
       const data = (await res.json()) as ProxyResponse;

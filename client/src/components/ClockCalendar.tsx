@@ -5,6 +5,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import { toLocalDateInput, parseLocalDate, calendarMonthRange } from "@/components/expense/shared";
+import { createClockTodoSchema } from "@shared/validation/models";
+import { validateInput } from "@/lib/form-validation";
 import { AppButton } from "./ui/AppButton";
 
 type ClockTodo = {
@@ -114,21 +116,23 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
 
   const addTodo = async (e: FormEvent) => {
     e.preventDefault();
-    const text = title.trim();
-    if (!text) return playBeep("error");
+    const deadline = dueTime ? `${dueDate}T${dueTime}:00` : `${dueDate}T23:59:00`;
+    const validated = validateInput(createClockTodoSchema, {
+      title,
+      deadline,
+      allDay: !dueTime,
+      syncToGoogle: googleConnected,
+    });
+    if (!validated.ok) {
+      return playBeep("error");
+    }
 
     setBusy(true);
     try {
-      const deadline = dueTime ? `${dueDate}T${dueTime}:00` : `${dueDate}T23:59:00`;
       const res = await fetch(`${env.VITE_API_URL}/api/clock/todos`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          title: text,
-          deadline,
-          allDay: !dueTime,
-          syncToGoogle: googleConnected,
-        }),
+        body: JSON.stringify(validated.data),
       });
       if (!res.ok) throw new Error();
       playBeep("success");

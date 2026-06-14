@@ -10,6 +10,8 @@ import {
   Wand2,
 } from "lucide-react";
 import { env } from "@/env";
+import { improveWritingRequestSchema } from "@shared/validation/writing";
+import { validateInput } from "@/lib/form-validation";
 import { panelClass } from "@/lib/form-styles";
 import {
   metaTextClass,
@@ -223,9 +225,15 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
     );
 
   const handleRun = useCallback(async () => {
-    if (!input.trim()) {
+    const validated = validateInput(improveWritingRequestSchema, {
+      input,
+      mode,
+      tone,
+      instruction: instruction.trim() || undefined,
+    });
+    if (!validated.ok) {
       playBeep("error");
-      setError("Paste something to improve first.");
+      setError(validated.message);
       return;
     }
 
@@ -238,12 +246,7 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
       const res = await fetch(`${env.VITE_API_URL}/api/writing/improve`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          input,
-          mode,
-          tone,
-          instruction: instruction.trim() || undefined,
-        }),
+        body: JSON.stringify(validated.data),
       });
 
       const data: ApiResponse = await res.json();

@@ -2,10 +2,15 @@ import type { ZodError } from "zod";
 import { getResponseHeaders } from "../http-context";
 
 export function validationFailedResponse(req: Request, error: ZodError): Response {
-  return new Response(JSON.stringify({ error: "Validation failed", details: error.format() }), {
-    status: 400,
-    headers: getResponseHeaders(req),
-  });
+  const firstIssue = error.issues[0];
+  const message = firstIssue?.message ?? "Validation failed";
+  return new Response(
+    JSON.stringify({ error: message, details: error.flatten() }),
+    {
+      status: 400,
+      headers: getResponseHeaders(req),
+    },
+  );
 }
 
 export function invalidObjectIdResponse(req: Request, label: string): Response {

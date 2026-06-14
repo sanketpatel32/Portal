@@ -42,6 +42,8 @@ import {
 } from "@/lib/ui-classes";
 import { fetchJsonResource } from "@/lib/fetch-json-resource";
 import { runConnectionTest } from "@/lib/test-db-connection";
+import { validateInput } from "@/lib/form-validation";
+import { sqlExecuteSchema } from "@shared/validation/sql";
 import {
   clearStoredSqlConnection,
   getStoredSqlConnection,
@@ -314,8 +316,10 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
   const executeQuery = useCallback(
     async (queryText?: string) => {
       const sql = (queryText || query).trim();
-      if (!sql) {
+      const validated = validateInput(sqlExecuteSchema, { query: sql });
+      if (!validated.ok) {
         playBeep("error");
+        showError(validated.message);
         return;
       }
       if (!connectionString.trim() || connectionStatus !== "connected") {
@@ -335,7 +339,7 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
         const res = await fetch(`${env.VITE_API_URL}/api/sql/execute`, {
           method: "POST",
           headers: getHeaders(),
-          body: JSON.stringify({ query: sql }),
+          body: JSON.stringify(validated.data),
         });
 
         const data = await res.json();

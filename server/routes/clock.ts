@@ -7,6 +7,9 @@ import {
   updateClockTodo,
 } from "../clock-todos";
 import { getResponseHeaders } from "../http-context";
+import { createClockTodoSchema, updateClockTodoSchema } from "../../shared/validation/models";
+import { clockAgendaQuerySchema, clockTodosQuerySchema } from "../../shared/validation/query";
+import { parseJsonBody, parseQueryParams } from "../request-validation";
 import mongoose from "mongoose";
 import type { RouteContext } from "./types";
 
@@ -22,8 +25,11 @@ export async function handleClock(ctx: RouteContext): Promise<Response | null> {
 
   if (url.pathname === "/api/clock/agenda" && req.method === "GET") {
     try {
-      const days = Math.min(30, Math.max(1, Number(url.searchParams.get("days")) || 14));
-      const agenda = await buildClockAgenda(days);
+      const query = parseQueryParams(req, clockAgendaQuerySchema);
+      if (!query.ok) {
+        return query.response;
+      }
+      const agenda = await buildClockAgenda(query.data.days);
       return new Response(JSON.stringify(agenda), {
         status: 200,
         headers: getResponseHeaders(req),
@@ -39,8 +45,11 @@ export async function handleClock(ctx: RouteContext): Promise<Response | null> {
 
   if (url.pathname === "/api/clock/todos" && req.method === "GET") {
     try {
-      const includeCompleted = url.searchParams.get("includeCompleted") === "true";
-      const todos = await listClockTodos(includeCompleted);
+      const query = parseQueryParams(req, clockTodosQuerySchema);
+      if (!query.ok) {
+        return query.response;
+      }
+      const todos = await listClockTodos(query.data.includeCompleted);
       return new Response(JSON.stringify({ todos }), {
         status: 200,
         headers: getResponseHeaders(req),
@@ -55,8 +64,11 @@ export async function handleClock(ctx: RouteContext): Promise<Response | null> {
 
   if (url.pathname === "/api/clock/todos" && req.method === "POST") {
     try {
-      const body = await req.json();
-      const todo = await createClockTodo(body);
+      const parsed = await parseJsonBody(req, createClockTodoSchema);
+      if (!parsed.ok) {
+        return parsed.response;
+      }
+      const todo = await createClockTodo(parsed.data);
       return new Response(JSON.stringify(todo), {
         status: 201,
         headers: getResponseHeaders(req),
@@ -81,8 +93,11 @@ export async function handleClock(ctx: RouteContext): Promise<Response | null> {
 
     if (req.method === "PUT") {
       try {
-        const body = await req.json();
-        const todo = await updateClockTodo(todoId, body);
+        const parsed = await parseJsonBody(req, updateClockTodoSchema);
+        if (!parsed.ok) {
+          return parsed.response;
+        }
+        const todo = await updateClockTodo(todoId, parsed.data);
         return new Response(JSON.stringify(todo), {
           status: 200,
           headers: getResponseHeaders(req),

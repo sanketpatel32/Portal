@@ -1,7 +1,8 @@
 import { improveWriting } from "../writing-agent";
-import type { ImproveWritingRequest, WritingMode, WritingTone } from "../writing-agent";
 import { isOpenRouterConfigured } from "../env";
 import { getResponseHeaders } from "../http-context";
+import { improveWritingRequestSchema } from "../../shared/validation/writing";
+import { parseJsonBody } from "../request-validation";
 import type { RouteContext } from "./types";
 
 export async function handleWriting(ctx: RouteContext): Promise<Response | null> {
@@ -16,29 +17,12 @@ export async function handleWriting(ctx: RouteContext): Promise<Response | null>
 
   if (url.pathname === "/api/writing/improve" && req.method === "POST") {
     try {
-      const body = (await req.json().catch(() => ({}))) as Partial<ImproveWritingRequest>;
-      const validModes = new Set<WritingMode>(["grammar", "improve", "linkedin", "twitter"]);
-      const validTones = new Set<WritingTone>([
-        "neutral",
-        "concise",
-        "business",
-        "formal",
-        "casual",
-        "persuasive",
-        "friendly",
-        "academic",
-      ]);
-      const mode: WritingMode =
-        body.mode && validModes.has(body.mode) ? body.mode : "grammar";
-      const tone: WritingTone =
-        body.tone && validTones.has(body.tone) ? body.tone : "neutral";
+      const parsed = await parseJsonBody(req, improveWritingRequestSchema);
+      if (!parsed.ok) {
+        return parsed.response;
+      }
 
-      const result = await improveWriting({
-        input: typeof body.input === "string" ? body.input : "",
-        mode,
-        tone,
-        instruction: typeof body.instruction === "string" ? body.instruction : undefined,
-      });
+      const result = await improveWriting(parsed.data);
 
       return new Response(JSON.stringify(result), {
         status: result.ok ? 200 : 400,

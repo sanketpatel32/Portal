@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { env } from "@/env";
 import { playBeep } from "../lib/audio";
+import { verifyPinSchema } from "@shared/validation/auth";
+import { validateInput } from "@/lib/form-validation";
 
 interface PinLockScreenProps {
   token: string | null;
@@ -80,6 +82,12 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
 
   // Submit PIN to server
   const submitPin = async (pinCode: string) => {
+    const validated = validateInput(verifyPinSchema, { pin: pinCode });
+    if (!validated.ok) {
+      triggerAuthError(validated.message);
+      return;
+    }
+
     setIsVerifying(true);
     setAuthError(null);
     

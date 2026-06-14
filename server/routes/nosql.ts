@@ -3,7 +3,6 @@ import {
   maskMongoUri,
   isAppMongoUri,
   isValidMongoUri,
-  NOSQL_URI_REQUIRED,
   listDatabases,
   listCollections,
   listDocuments,
@@ -17,7 +16,13 @@ import {
   mongoUriErrorMessage,
 } from "../nosql-mongo";
 import { getResponseHeaders } from "../http-context";
-import { connectionTestFailureResponse, errorMessage, errorResponse, invalidJsonObjectResponse, invalidResourceNameResponse, parseJsonObjectBody, parseResourceName } from "./helpers";
+import {
+  mongoConnectionTestSchema,
+  nosqlDocumentsQuerySchema,
+} from "../../shared/validation/nosql";
+import { mongoDocumentSchema, resourceNameSchema } from "../../shared/validation/common";
+import { connectionTestFailureResponse, errorMessage, errorResponse } from "./helpers";
+import { parseJsonBody, parseQueryParams } from "../request-validation";
 import type { RouteContext } from "./types";
 
 export async function handleNosql(ctx: RouteContext): Promise<Response | null> {
@@ -25,14 +30,12 @@ export async function handleNosql(ctx: RouteContext): Promise<Response | null> {
 
   if (url.pathname === "/api/nosql/connection/test" && req.method === "POST") {
     try {
-      const body = await req.json().catch(() => ({}));
-      const uri = typeof body.uri === "string" ? body.uri.trim() : "";
-      if (!uri) {
-        return new Response(JSON.stringify({ ok: false, error: NOSQL_URI_REQUIRED }), {
-          status: 400,
-          headers: getResponseHeaders(req),
-        });
+      const parsed = await parseJsonBody(req, mongoConnectionTestSchema);
+      if (!parsed.ok) {
+        return parsed.response;
       }
+
+      const uri = parsed.data.uri;
       if (!isValidMongoUri(uri)) {
         return new Response(JSON.stringify({ ok: false, error: mongoUriErrorMessage("invalid") }), {
           status: 400,
@@ -107,13 +110,12 @@ export async function handleNosql(ctx: RouteContext): Promise<Response | null> {
 
     if (url.pathname === "/api/nosql/databases" && req.method === "POST") {
       try {
-        const body = await req.json();
-        const name = parseResourceName(body);
-        if (!name) {
-          return invalidResourceNameResponse(req, "Database");
+        const parsed = await parseJsonBody(req, resourceNameSchema);
+        if (!parsed.ok) {
+          return parsed.response;
         }
-        await createDatabase(uri, name);
-        return new Response(JSON.stringify({ name }), { status: 201, headers: getResponseHeaders(req) });
+        await createDatabase(uri, parsed.data.name);
+        return new Response(JSON.stringify({ name: parsed.data.name }), { status: 201, headers: getResponseHeaders(req) });
       } catch (err: unknown) {
         return errorResponse(req, errorMessage(err, "Failed to create database"), 400);
       }
@@ -133,13 +135,12 @@ export async function handleNosql(ctx: RouteContext): Promise<Response | null> {
     if (nosqlCollectionsMatch && req.method === "POST") {
       const dbName = decodeURIComponent(nosqlCollectionsMatch[1]);
       try {
-        const body = await req.json();
-        const name = parseResourceName(body);
-        if (!name) {
-          return invalidResourceNameResponse(req, "Collection");
+        const parsed = await parseJsonBody(req, resourceNameSchema);
+        if (!parsed.ok) {
+          return parsed.response;
         }
-        await createCollection(uri, dbName, name);
-        return new Response(JSON.stringify({ name }), { status: 201, headers: getResponseHeaders(req) });
+        await createCollection(uri, dbName, parsed.data.name);
+        return new Response(JSON.stringify({ name: parsed.data.name }), { status: 201, headers: getResponseHeaders(req) });
       } catch (err: unknown) {
         return errorResponse(req, errorMessage(err, "Failed to create collection"), 400);
       }
@@ -150,18 +151,11 @@ export async function handleNosql(ctx: RouteContext): Promise<Response | null> {
       const dbName = decodeURIComponent(nosqlDocumentsMatch[1]);
       const colName = decodeURIComponent(nosqlDocumentsMatch[2]);
       try {
-        const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
-        const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 50));
-        const filterParam = url.searchParams.get("filter");
-        let filter: Record<string, unknown> | undefined;
-        if (filterParam) {
-          try {
-            filter = JSON.parse(filterParam) as Record<string, unknown>;
-          } catch {
-            return new Response(JSON.stringify({ error: "Invalid filter JSON" }), { status: 400, headers: getResponseHeaders(req) });
-          }
+        const query = parseQueryParams(req, nosqlDocumentsQuerySchema);
+        if (!query.ok) {
+          return query.response;
         }
-        const result = await listDocuments(uri, dbName, colName, page, limit, filter);
+        const result = await listDocuments(uri, dbName, colName, query.data.page, query.data.limit, query.data.filter);
         return new Response(JSON.stringify(result), { status: 200, headers: getResponseHeaders(req) });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to list documents";
@@ -173,12 +167,11 @@ export async function handleNosql(ctx: RouteContext): Promise<Response | null> {
       const dbName = decodeURIComponent(nosqlDocumentsMatch[1]);
       const colName = decodeURIComponent(nosqlDocumentsMatch[2]);
       try {
-        const body = await req.json();
-        const document = parseJsonObjectBody(body);
-        if (!document) {
-          return invalidJsonObjectResponse(req);
+        const parsed = await parseJsonBody(req, mongoDocumentSchema);
+        if (!parsed.ok) {
+          return parsed.response;
         }
-        const doc = await createDocument(uri, dbName, colName, document);
+        const doc = await createDocument(uri, dbName, colName, parsed.data);
         return new Response(JSON.stringify(doc), { status: 201, headers: getResponseHeaders(req) });
       } catch (err: unknown) {
         return errorResponse(req, errorMessage(err, "Failed to create document"), 400);
@@ -206,12 +199,11 @@ export async function handleNosql(ctx: RouteContext): Promise<Response | null> {
 
       if (req.method === "PUT") {
         try {
-          const body = await req.json();
-          const document = parseJsonObjectBody(body);
-          if (!document) {
-            return invalidJsonObjectResponse(req);
+          const parsed = await parseJsonBody(req, mongoDocumentSchema);
+          if (!parsed.ok) {
+            return parsed.response;
           }
-          const updated = await updateDocument(uri, dbName, colName, docId, document);
+          const updated = await updateDocument(uri, dbName, colName, docId, parsed.data);
           if (!updated) {
             return new Response(JSON.stringify({ error: "Document not found" }), { status: 404, headers: getResponseHeaders(req) });
           }

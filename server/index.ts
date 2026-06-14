@@ -11,7 +11,7 @@ import {
 import { isRateLimited } from "./rate-limit";
 import { routeHandlers } from "./routes";
 import { getMetrics } from "./routes/metrics";
-import { z } from "zod";
+import { chatMessageSchema } from "../shared/validation/websocket";
 
 connectDB();
 
@@ -102,12 +102,7 @@ const server = Bun.serve({
         if (payload.type === "ping") {
           ws.send(JSON.stringify({ type: "pong", timestamp: Date.now() }));
         } else if (payload.type === "chat") {
-          const chatSchema = z.object({
-            sender: z.string().min(1).max(30).transform(val => val.replace(/</g, "&lt;")),
-            message: z.string().min(1).max(200).transform(val => val.replace(/</g, "&lt;")),
-          });
-
-          const validatedChat = chatSchema.safeParse(payload);
+          const validatedChat = chatMessageSchema.safeParse(payload);
           if (validatedChat.success) {
             server.publish("activity", JSON.stringify({
               type: "chat_message",

@@ -16,29 +16,13 @@
  */
 
 import { env, isOpenRouterConfigured } from "./env";
+import type { ImproveWritingRequest, WritingMode, WritingTone } from "../shared/validation/writing";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const REQUEST_TIMEOUT_MS = 45_000;
 const MAX_INPUT_CHARS = 12_000;
 
-export type WritingMode = "grammar" | "improve" | "linkedin" | "twitter";
-
-export type WritingTone =
-  | "neutral"
-  | "concise"
-  | "business"
-  | "formal"
-  | "casual"
-  | "persuasive"
-  | "friendly"
-  | "academic";
-
-export type ImproveWritingRequest = {
-  input: string;
-  mode?: WritingMode;
-  tone?: WritingTone;
-  instruction?: string;
-};
+export type { ImproveWritingRequest, WritingMode, WritingTone };
 
 export type ImproveWritingResponse = {
   ok: boolean;

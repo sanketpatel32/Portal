@@ -1,7 +1,20 @@
 import mongoose from "mongoose";
-import { z } from "zod";
 import { standardMongooseToJson } from "./mongoose-json";
 import { env } from "./env";
+
+export {
+  createTaskSchema,
+  updateTaskSchema,
+  createExpenseSchema,
+  updateExpenseSchema,
+  createRecurringExpenseSchema,
+  updateRecurringExpenseSchema,
+  createClockTodoSchema,
+  updateClockTodoSchema,
+  expenseTypeSchema,
+  type CreateClockTodoInput,
+  type UpdateClockTodoInput,
+} from "../shared/validation/models";
 
 export let isDbConnected = false;
 
@@ -19,48 +32,6 @@ export function connectDB() {
       console.error("   The server will run, but database queries will return errors.");
     });
 }
-
-// XSS Sanitizer function for strings
-const sanitizeString = (val: string) => {
-  return val
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;")
-    .replace(/\//g, "&#x2F;");
-};
-
-// Zod schemas with validation and XSS sanitation
-export const createTaskSchema = z.object({
-  title: z
-    .string()
-    .min(1, "Title is required")
-    .max(100, "Title is too long")
-    .transform(sanitizeString),
-  description: z
-    .string()
-    .max(500, "Description is too long")
-    .default("")
-    .transform(sanitizeString),
-  status: z.enum(["todo", "in_progress", "done"]).default("todo"),
-  priority: z.enum(["low", "medium", "high"]).default("medium"),
-});
-
-export const updateTaskSchema = z.object({
-  title: z
-    .string()
-    .min(1, "Title is required")
-    .max(100, "Title is too long")
-    .transform(sanitizeString)
-    .optional(),
-  description: z
-    .string()
-    .max(500, "Description is too long")
-    .transform(sanitizeString)
-    .optional(),
-  status: z.enum(["todo", "in_progress", "done"]).optional(),
-  priority: z.enum(["low", "medium", "high"]).optional(),
-});
 
 // Mongoose Document Interface
 interface ITaskDocument extends mongoose.Document {
@@ -107,49 +78,6 @@ export function parseExpenseDateInput(value: string): Date {
   return parsed;
 }
 
-const expenseDateInputSchema = z
-  .string()
-  .min(1, "Date is required")
-  .refine((value) => DATE_ONLY.test(value.slice(0, 10)) || !Number.isNaN(Date.parse(value)), {
-    message: "Date must be YYYY-MM-DD",
-  });
-
-export const createExpenseSchema = z.object({
-  amount: z.number().int("Amount must be a whole number").min(1, "Amount must be at least 1"),
-  description: z
-    .string()
-    .max(200, "Description too long")
-    .default("")
-    .transform(sanitizeString),
-  type: z.enum(["need", "want", "investment", "surprise"]),
-  category: z
-    .string()
-    .max(60, "Category too long")
-    .default("")
-    .transform(sanitizeString),
-  tags: z.array(z.string().max(40).transform(sanitizeString)).default([]),
-  date: expenseDateInputSchema,
-  recurringId: z.string().optional(),
-});
-
-export const updateExpenseSchema = z.object({
-  amount: z.number().int("Amount must be a whole number").min(1).optional(),
-  description: z
-    .string()
-    .max(200)
-    .transform(sanitizeString)
-    .optional(),
-  type: z.enum(["need", "want", "investment", "surprise"]).optional(),
-  category: z
-    .string()
-    .max(60)
-    .transform(sanitizeString)
-    .optional(),
-  tags: z.array(z.string().max(40).transform(sanitizeString)).optional(),
-  date: expenseDateInputSchema.optional(),
-  recurringId: z.string().optional(),
-});
-
 interface IExpenseDocument extends mongoose.Document {
   amount: number;
   description: string;
@@ -179,26 +107,6 @@ const expenseSchema = new mongoose.Schema<IExpenseDocument>(
 );
 
 export const ExpenseModel = mongoose.model<IExpenseDocument>("Expense", expenseSchema);
-
-export const createRecurringExpenseSchema = z.object({
-  amount: z.number().int("Amount must be a whole number").min(1),
-  description: z.string().max(200).default("").transform(sanitizeString),
-  type: z.enum(["need", "want", "investment", "surprise"]),
-  category: z.string().max(60).default("").transform(sanitizeString),
-  startDate: expenseDateInputSchema,
-  monthCount: z.number().int().min(1).max(12).nullable().default(null),
-  active: z.boolean().default(true),
-});
-
-export const updateRecurringExpenseSchema = z.object({
-  amount: z.number().int().min(1).optional(),
-  description: z.string().max(200).transform(sanitizeString).optional(),
-  type: z.enum(["need", "want", "investment", "surprise"]).optional(),
-  category: z.string().max(60).transform(sanitizeString).optional(),
-  startDate: expenseDateInputSchema.optional(),
-  monthCount: z.number().int().min(1).max(12).nullable().optional(),
-  active: z.boolean().optional(),
-});
 
 export interface IRecurringExpenseDocument extends mongoose.Document {
   amount: number;
@@ -304,35 +212,6 @@ noSqlDocumentSchema.index({ databaseName: 1, collectionName: 1 });
 const NoSqlDocumentModel = mongoose.model<INoSqlDocumentDocument>("NoSqlDocument", noSqlDocumentSchema);
 
 // ── Clock todos (deadlines merged with Google Calendar) ─────────
-
-const clockTodoDateInputSchema = z
-  .string()
-  .min(1, "Deadline is required")
-  .refine((value) => !Number.isNaN(new Date(value).getTime()), "Invalid deadline");
-
-export const createClockTodoSchema = z.object({
-  title: z
-    .string()
-    .min(1, "Title is required")
-    .max(120, "Title is too long")
-    .transform(sanitizeString),
-  deadline: clockTodoDateInputSchema,
-  allDay: z.boolean().default(true),
-  syncToGoogle: z.boolean().default(true),
-});
-
-export const updateClockTodoSchema = z.object({
-  title: z
-    .string()
-    .min(1, "Title is required")
-    .max(120, "Title is too long")
-    .transform(sanitizeString)
-    .optional(),
-  deadline: clockTodoDateInputSchema.optional(),
-  allDay: z.boolean().optional(),
-  completed: z.boolean().optional(),
-  syncToGoogle: z.boolean().optional(),
-});
 
 export interface IClockTodoDocument extends mongoose.Document {
   title: string;

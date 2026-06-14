@@ -10,13 +10,9 @@
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024; // 2 MB cap to keep things light
 const REQUEST_TIMEOUT_MS = 30_000;
 
-export type ProxyRequest = {
-  method: string;
-  url: string;
-  headers: Array<{ key: string; value: string; enabled: boolean }>;
-  params: Array<{ key: string; value: string; enabled: boolean }>;
-  body: string;
-};
+import type { ProxyRequest } from "../shared/validation/postman";
+
+export type { ProxyRequest };
 
 export type ProxyResponse = {
   ok: boolean;

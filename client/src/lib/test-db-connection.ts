@@ -1,4 +1,7 @@
 import { env } from "@/env";
+import { mongoConnectionTestSchema } from "@shared/validation/nosql";
+import { sqlConnectionTestSchema } from "@shared/validation/sql";
+import { validateInput } from "@/lib/form-validation";
 
 type ConnectionTestResult = {
   ok: boolean;
@@ -11,19 +14,22 @@ export async function runConnectionTest(options: {
   emptyMessage: string;
   endpoint: string;
   headers: Record<string, string>;
-  bodyKey: string;
+  bodyKey: "uri" | "connectionString";
   buildSuccessMessage: (data: Record<string, unknown>) => string;
 }): Promise<ConnectionTestResult> {
-  const trimmed = options.value.trim();
-  if (!trimmed) {
-    return { ok: false, message: options.emptyMessage };
+  const validated =
+    options.bodyKey === "uri"
+      ? validateInput(mongoConnectionTestSchema, { uri: options.value })
+      : validateInput(sqlConnectionTestSchema, { connectionString: options.value });
+  if (!validated.ok) {
+    return { ok: false, message: validated.message || options.emptyMessage };
   }
 
   try {
     const res = await fetch(`${env.VITE_API_URL}${options.endpoint}`, {
       method: "POST",
       headers: options.headers,
-      body: JSON.stringify({ [options.bodyKey]: trimmed }),
+      body: JSON.stringify(validated.data),
     });
     const data = (await res.json()) as Record<string, unknown>;
     if (res.ok && data.ok) {
