@@ -44,10 +44,10 @@ jobs:
           # Stage ONLY what the VPS needs. node_modules is excluded — the VPS
           # installs production deps itself from the lockfile. server/.env is
           # never shipped from CI (it already lives on the box, with secrets).
-          mkdir -p stage/server stage/shared/validation stage/client/dist stage/deploy
-          # Server: all .ts sources at server root (no subdirs today).
-          cp server/*.ts stage/server/
-          cp server/package.json stage/server/
+          mkdir -p stage/shared/validation stage/client/dist stage/deploy
+          # Server: full source tree (root .ts files + routes/ subdirectory),
+          # but skip node_modules which the VPS installs itself.
+          rsync -a --exclude node_modules server/ stage/server/
           # Shared: the validation/ folder holds the actual .ts schemas.
           cp shared/package.json stage/shared/
           cp shared/validation/*.ts stage/shared/validation/
