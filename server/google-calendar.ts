@@ -11,6 +11,29 @@ const GOOGLE_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/prim
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const oauthStates = new Map<string, number>();
 
+// Upper bound on any single Google API call. Without this a hung Google
+// endpoint pins the in-flight request (and its response buffers) forever — on
+// a 1 GB box that's a real risk. 15 s is generous for these endpoints.
+const GOOGLE_FETCH_TIMEOUT_MS = 15_000;
+
+/**
+ * fetch() wrapper that aborts after GOOGLE_FETCH_TIMEOUT_MS so a slow/hung
+ * Google endpoint can't hold the request open indefinitely. The abort is
+ * surfaced as a normal error to the caller (existing catch blocks handle it).
+ */
+async function fetchGoogle(
+  input: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GOOGLE_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export type GoogleCalendarEvent = {
   id: string;
   summary: string;
@@ -99,7 +122,7 @@ type TokenResponse = {
 };
 
 async function postGoogleTokenRequest(body: URLSearchParams, errorLabel: string): Promise<TokenResponse> {
-  const res = await fetch(GOOGLE_TOKEN_URL, {
+  const res = await fetchGoogle(GOOGLE_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
@@ -138,7 +161,7 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> 
 }
 
 async function fetchGoogleEmail(accessToken: string): Promise<string | undefined> {
-  const res = await fetch(GOOGLE_USERINFO_URL, {
+  const res = await fetchGoogle(GOOGLE_USERINFO_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) return undefined;
@@ -238,7 +261,7 @@ export async function listGoogleCalendarEvents(days = 7): Promise<GoogleCalendar
     maxResults: "50",
   });
 
-  const res = await fetch(`${GOOGLE_EVENTS_URL}?${params.toString()}`, {
+  const res = await fetchGoogle(`${GOOGLE_EVENTS_URL}?${params.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
@@ -303,7 +326,7 @@ async function mutateGoogleCalendarEvent(
   const accessToken = await getValidAccessToken();
   if (!accessToken) return {};
 
-  const res = await fetch(url, {
+  const res = await fetchGoogle(url, {
     method,
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -349,7 +372,7 @@ export async function deleteGoogleCalendarEvent(eventId: string): Promise<void> 
   const accessToken = await getValidAccessToken();
   if (!accessToken) return;
 
-  const res = await fetch(`${GOOGLE_EVENTS_URL}/${encodeURIComponent(eventId)}`, {
+  const res = await fetchGoogle(`${GOOGLE_EVENTS_URL}/${encodeURIComponent(eventId)}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${accessToken}` },
   });

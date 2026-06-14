@@ -1,0 +1,52 @@
+[Unit]
+Description=AuraFlow (Bun + Vite React) production server
+Documentation=https://github.com/your-org/auraflow
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=auraflow
+Group=auraflow
+WorkingDirectory=/opt/auraflow
+
+# `bun --smol` shrinks the baseline heap and disables Bun's JIT-forced-opts,
+# trading a little throughput for ~30-50MB lower RSS — important on a 1GB box.
+# `start` (from package.json) is just: bun --smol run server/index.ts
+ExecStart=/home/auraflow/.bun/bin/bun --smol run server/index.ts
+
+# Restart policy: recover from crashes but don't thrash if it's wedged.
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Environment + secrets. server/.env is also loaded by the app itself; this
+# file is for anything you want systemd to inject (e.g. override PORT).
+EnvironmentFile=-/opt/auraflow/server/.env
+
+# Resource ceilings — keeps the process from eating the whole 1GB box.
+MemoryMax=640M
+MemoryHigh=512M
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+
+# Where logs go (journalctl -u auraflow)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=auraflow
+
+[Install]
+WantedBy=multi-user.target

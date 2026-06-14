@@ -18,9 +18,17 @@ export {
 
 export let isDbConnected = false;
 
-// Connect to MongoDB asynchronously
+// Connect to MongoDB asynchronously.
+// The driver's default maxPoolSize is 100 — overkill for a single-user
+// dashboard and wasteful on a 1 GB box. 10 sockets is plenty and lets the OS
+// keep that RAM for the app.
 export function connectDB() {
-  mongoose.connect(env.MONGODB_URI)
+  mongoose
+    .connect(env.MONGODB_URI, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 8000,
+      socketTimeoutMS: 45000,
+    })
     .then(() => {
       isDbConnected = true;
       console.log("💾 Connected to MongoDB successfully via Mongoose");

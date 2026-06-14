@@ -403,6 +403,19 @@ export async function executeReadOnlySql(connectionString: string, sqlText: stri
   const dialect = detectSqlDialect(effective);
   const startTime = performance.now();
 
+  // Race a query against a timeout, but clear the timer once the query settles
+  // so the setTimeout closure doesn't linger (and pin memory) for the full
+  // QUERY_TIMEOUT_MS on every successful run.
+  const withTimeout = <T>(work: Promise<T>): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("Query timed out")), QUERY_TIMEOUT_MS);
+    });
+    return Promise.race([work, timeout]).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
+  };
+
   if (dialect === "postgres") {
     const sql = postgres(effective, {
       max: 1,
@@ -411,12 +424,7 @@ export async function executeReadOnlySql(connectionString: string, sqlText: stri
       prepare: false,
     });
     try {
-      const rows = (await Promise.race([
-        sql.unsafe(query),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Query timed out")), QUERY_TIMEOUT_MS)
-        ),
-      ])) as Record<string, unknown>[];
+      const rows = (await withTimeout(sql.unsafe(query))) as Record<string, unknown>[];
       return rowsToResult(rows, startTime, effective, dialect);
     } finally {
       await sql.end({ timeout: 5 });
@@ -426,12 +434,9 @@ export async function executeReadOnlySql(connectionString: string, sqlText: stri
   if (dialect === "mysql") {
     const conn = await mysql.createConnection(effective);
     try {
-      const [rows] = (await Promise.race([
-        conn.query(query),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Query timed out")), QUERY_TIMEOUT_MS)
-        ),
-      ])) as [Record<string, unknown>[], unknown];
+      const [rows] = (await withTimeout(
+        conn.query(query) as Promise<[Record<string, unknown>[], unknown]>
+      )) as [Record<string, unknown>[], unknown];
       const list = Array.isArray(rows) ? rows : [];
       return rowsToResult(list as Record<string, unknown>[], startTime, effective, dialect);
     } finally {

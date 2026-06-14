@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { env } from "@/env";
 import { useAuthHeaders } from "@/hooks/useAuthHeaders";
-import { playBeep } from "@/lib/audio";
 import { parseApiError } from "@/lib/parse-api-error";
 import { validateInput } from "@/lib/form-validation";
 import {

@@ -86,6 +86,34 @@ export async function syncRecurringExpenses(): Promise<number> {
   return created;
 }
 
+/**
+ * Throttled wrapper for the pre-request safety-net call in the expenses
+ * handler. `syncRecurringExpenses` is idempotent (it skips templates that
+ * already have an expense for the current month), so running it on every
+ * single /api/expenses* request wastes a full collection scan + per-template
+ * exists() probe for no benefit. Coalescing to at most once per 5 min keeps
+ * the safety net without the per-request DB cost.
+ *
+ * Explicit create/update of a recurring template still calls the unthrottled
+ * `syncRecurringExpenses()` directly so the new/edited template materializes
+ * immediately.
+ */
+const SYNC_THROTTLE_MS = 5 * 60 * 1000;
+let lastSyncRunAt = 0;
+let inflightSync: Promise<number> | null = null;
+
+export async function syncRecurringExpensesThrottled(): Promise<number> {
+  const now = Date.now();
+  if (inflightSync) return inflightSync;
+  if (now - lastSyncRunAt < SYNC_THROTTLE_MS) return 0;
+
+  inflightSync = syncRecurringExpenses().finally(() => {
+    lastSyncRunAt = Date.now();
+    inflightSync = null;
+  });
+  return inflightSync;
+}
+
 function parseMonthParam(month: string | null): { year: number; monthIndex: number; label: string } | null {
   if (!month || !/^\d{4}-\d{2}$/.test(month)) return null;
   const [year, monthNum] = month.split("-").map(Number);

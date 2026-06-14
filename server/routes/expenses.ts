@@ -8,7 +8,7 @@ import {
   parseExpenseDateInput,
   isDbConnected,
 } from "../db";
-import { syncRecurringExpenses, monthRangeFromParam } from "../recurring";
+import { syncRecurringExpenses, syncRecurringExpensesThrottled, monthRangeFromParam } from "../recurring";
 import { getResponseHeaders } from "../http-context";
 import { invalidObjectIdResponse, updateFailureResponse, publishDeleteSuccess, readPathId } from "./helpers";
 import { parseJsonBody } from "../request-validation";
@@ -55,7 +55,10 @@ export async function handleExpenses(ctx: RouteContext): Promise<Response | null
   }
 
   if (isDbConnected && url.pathname.startsWith("/api/expenses")) {
-    await syncRecurringExpenses();
+    // Throttled safety-net sync: at most once per 5 min. Explicit create/update
+    // of a recurring template below still calls the unthrottled sync so a new
+    // template materializes immediately.
+    await syncRecurringExpensesThrottled();
   }
 
   if (url.pathname === "/api/expenses/chart" && req.method === "GET") {

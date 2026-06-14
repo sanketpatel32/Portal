@@ -3,7 +3,21 @@ import { env } from "./env";
 
 const SYSTEM_DATABASES = new Set(["admin", "local", "config"]);
 
+// Each cached entry holds an open MongoClient (with its own connection pool),
+// so an unbounded cache is also an unbounded pool/ssocket leak. Cap it: a
+// single user juggling a few external databases will never hit this limit, but
+// a client cycling URIs can no longer grow the cache forever on a 1 GB box.
+const CLIENT_CACHE_MAX = 5;
 const clientCache = new Map<string, MongoClient>();
+
+/** Evict the oldest cached client (by insertion order) and close its pool. */
+async function evictOldestClient() {
+  const oldestUri = clientCache.keys().next().value;
+  if (oldestUri === undefined) return;
+  const client = clientCache.get(oldestUri);
+  clientCache.delete(oldestUri);
+  await client?.close().catch(() => undefined);
+}
 
 export function isValidMongoUri(uri: string): boolean {
   return uri.startsWith("mongodb://") || uri.startsWith("mongodb+srv://");
@@ -83,6 +97,9 @@ async function getClient(uri: string): Promise<MongoClient> {
   if (cached) {
     try {
       await cached.db().admin().ping();
+      // LRU refresh: re-insert so this URI becomes the most recently used.
+      clientCache.delete(uri);
+      clientCache.set(uri, cached);
       return cached;
     } catch {
       clientCache.delete(uri);
@@ -90,9 +107,16 @@ async function getClient(uri: string): Promise<MongoClient> {
     }
   }
 
+  // Enforce the cap before opening a brand-new pool.
+  while (clientCache.size >= CLIENT_CACHE_MAX) {
+    await evictOldestClient();
+  }
+
   const client = new MongoClient(uri, {
     serverSelectionTimeoutMS: 8000,
     connectTimeoutMS: 8000,
+    // Small pool: this is a manual explorer tool, not a high-throughput path.
+    maxPoolSize: 5,
   });
   await client.connect();
   clientCache.set(uri, client);
