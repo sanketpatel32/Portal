@@ -5,7 +5,7 @@
   "workspaces": ["client", "server", "shared"],
   "scripts": {
     "dev": "bun run dev.ts",
-    "build": "bun --cwd client run build",
+    "build": "bun run --filter client build",
     "start": "bun --smol run server/index.ts",
     "server": "bun --cwd server run --hot index.ts",
     "client": "bun --cwd client run dev",
