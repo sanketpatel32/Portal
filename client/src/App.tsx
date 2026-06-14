@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import type { AppOneSubappId } from "./types/app";
 import { playBeep } from "./lib/audio";
+import {
+  clearNavigationHash,
+  parseNavigationFromHash,
+  readInitialNavigation,
+  updateNavigationHash,
+} from "./lib/app-navigation";
 import { PinLockScreen } from "./components/PinLockScreen";
 import { NewtonsCradle } from "./components/NewtonsCradle";
 import { ClockTimerAlarm } from "./components/ClockTimerAlarm";
@@ -37,11 +43,27 @@ const appOneSubapps: Array<{ id: AppOneSubappId; label: string; detail: string }
 ];
 
 function App() {
+  const initialNavigation = readInitialNavigation();
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("auraflow_pin_token"));
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [activeApp, setActiveApp] = useState<number | null>(null);
-  const [activeSubapp, setActiveSubapp] = useState<AppOneSubappId | null>(null);
+  const [activeApp, setActiveApp] = useState<number | null>(initialNavigation.activeApp);
+  const [activeSubapp, setActiveSubapp] = useState<AppOneSubappId | null>(initialNavigation.activeSubapp);
+
+  useEffect(() => {
+    updateNavigationHash(activeApp, activeSubapp);
+  }, [activeApp, activeSubapp]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const navigation = parseNavigationFromHash(window.location.hash);
+      setActiveApp(navigation.activeApp);
+      setActiveSubapp(navigation.activeSubapp);
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const handleLogout = () => {
     playBeep("error");
@@ -51,6 +73,7 @@ function App() {
     setIsUnlocked(false);
     setActiveApp(null);
     setActiveSubapp(null);
+    clearNavigationHash();
   };
 
   const renderSubappPlaceholder = (title: string) => (
