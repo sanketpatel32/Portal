@@ -1,0 +1,97 @@
+name: Deploy to VPS
+
+# Builds the client in CI (free compute — keeps the heavy vite build off the
+# 1 GB box), rsyncs server + shared + built client/dist to the VPS, then
+# restarts the auraflow systemd service. Triggers on every push to main.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # manual run from the Actions tab
+
+concurrency:
+  group: deploy-vps
+  # Never cancel a mid-flight deploy — let it finish to avoid a half-synced
+  # tree if you push twice in quick succession.
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build client
+        run: bun run build
+        env:
+          # Empty on purpose: the production bundle falls back to
+          # window.location.origin at runtime (see client/src/env.ts), so one
+          # build works regardless of the eventual host/port.
+          VITE_API_URL: ""
+          VITE_WS_URL: ""
+
+      - name: Stage deploy bundle
+        run: |
+          # Stage ONLY what the VPS needs. node_modules is excluded — the VPS
+          # installs production deps itself from the lockfile. server/.env is
+          # never shipped from CI (it already lives on the box, with secrets).
+          mkdir -p stage/server stage/shared stage/client stage/deploy
+          cp -r server/*.ts stage/server/
+          cp server/package.json stage/server/
+          cp -r shared/*.ts shared/package.json stage/shared/ 2>/dev/null || cp -r shared stage/
+          cp -r client/dist stage/client/dist
+          cp deploy/auraflow.service stage/deploy/
+          cp bun.lock package.json stage/
+          # Verify the SPA entry exists before we ship anything.
+          test -f stage/client/dist/index.html
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync files to VPS
+        # --delete keeps the VPS tree in lockstep with the repo (removed files
+        # actually get removed). Trailing slash on stage/ copies contents.
+        run: |
+          rsync -azp --delete \
+            -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
+            stage/ auraflow@${{ secrets.VPS_HOST }}:/opt/auraflow/
+
+      - name: Install production deps & restart
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no auraflow@${{ secrets.VPS_HOST }} '
+            set -e
+            cd /opt/auraflow
+            /home/auraflow/.bun/bin/bun install --frozen-lockfile --production
+            # Refresh the systemd unit if it changed in this push, then restart.
+            sudo cp /opt/auraflow/deploy/auraflow.service /etc/systemd/system/auraflow.service
+            sudo systemctl daemon-reload
+            sudo systemctl restart auraflow
+            sleep 2
+            sudo systemctl is-active auraflow
+          '
+
+      - name: Smoke test
+        run: |
+          sleep 3
+          # "/" → 200 means the SPA is being served.
+          code=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.VPS_HOST }}:3001/)
+          echo "GET / -> $code"
+          [ "$code" = "200" ] || { echo "FAIL: expected 200"; exit 1; }
+          # "/api/metrics" → 401 means the API + auth gate are up.
+          code=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.VPS_HOST }}:3001/api/metrics)
+          echo "GET /api/metrics -> $code"
+          [ "$code" = "401" ] || { echo "FAIL: expected 401"; exit 1; }
+          echo "✅ Deploy verified"
