@@ -24,6 +24,7 @@ import { AppButton } from "./ui/AppButton";
 import { EmptyState } from "./ui/EmptyState";
 import { Pagination } from "./ui/Pagination";
 import { FormField } from "./shared/FormField";
+import { SearchableSelect } from "./ui/SearchableSelect";
 import { ToolPanel } from "./ui/ToolPanel";
 import { fieldClass, panelClass } from "@/lib/form-styles";
 import { interactiveCardClass } from "@/lib/ui-classes";
@@ -194,46 +195,29 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
 
           <div className="flex flex-col gap-4">
             <FormField label="framework or ecosystem">
-              <select
+              <SearchableSelect
                 value={githubFramework}
-                onChange={(event) => setGithubFramework(event.target.value)}
-                className={fieldClass}
-              >
-                {githubFrameworkOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setGithubFramework}
+                options={githubFrameworkOptions}
+              />
             </FormField>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField label="language">
-                <select
+                <SearchableSelect
                   value={githubLanguage}
-                  onChange={(event) => setGithubLanguage(event.target.value)}
-                  className={fieldClass}
-                >
-                  {githubLanguageOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setGithubLanguage}
+                  options={githubLanguageOptions}
+                />
               </FormField>
 
-              <FormField label="topic (optional)">
-                <select
+              <FormField label="topic">
+                <SearchableSelect
                   value={githubTopic}
-                  onChange={(event) => setGithubTopic(event.target.value)}
-                  className={fieldClass}
-                >
-                  {githubTopicOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setGithubTopic}
+                  options={githubTopicOptions}
+                  placeholder="Any topic"
+                />
               </FormField>
             </div>
 
@@ -252,7 +236,7 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
                 </select>
               </FormField>
 
-              <FormField label="last push activity">
+              <FormField label="last push">
                 <select
                   value={githubRecentDays}
                   onChange={(event) => setGithubRecentDays(Number(event.target.value))}

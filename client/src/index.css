@@ -493,3 +493,16 @@ h1, h2, h3, h4, h5, h6 {
 .status-dot-testing {
   animation: status-pulse 1s ease-in-out infinite;
 }
+
+/* react-day-picker: keep native month/year selects invisible and scoped to their chip */
+[data-slot="calendar"] .rdp-dropdown {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  color: transparent;
+}
+
+[data-slot="calendar"] .rdp-dropdown option {
+  color: #000;
+}

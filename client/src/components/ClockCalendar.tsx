@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarIcon, Circle, ExternalLink, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
+import {
+  CalendarDays,
+  Circle,
+  ExternalLink,
+  Loader2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import { toLocalDateInput, parseLocalDate, calendarMonthRange } from "@/components/expense/shared";
 import { createClockTodoSchema } from "@shared/validation/models";
 import { validateInput } from "@/lib/form-validation";
 import { AppButton } from "./ui/AppButton";
+import { TimePicker } from "./ui/TimePicker";
 
 type ClockTodo = {
   id: string;
@@ -37,6 +46,15 @@ type ClockCalendarProps = {
   playBeep: (type: "success" | "error" | "click") => void;
 };
 
+type DayGroup = {
+  label: string;
+  iso: string;
+  items: AgendaItem[];
+};
+
+const underlineFieldClass =
+  "min-w-0 flex-1 border-b border-white/10 bg-transparent py-2.5 text-[15px] font-light text-white outline-none transition-app placeholder:text-zinc-700 focus:border-white/35";
+
 function dayLabel(iso: string): string {
   const d = new Date(iso);
   const today = new Date();
@@ -44,7 +62,7 @@ function dayLabel(iso: string): string {
   tomorrow.setDate(today.getDate() + 1);
   if (d.toDateString() === today.toDateString()) return "Today";
   if (d.toDateString() === tomorrow.toDateString()) return "Tomorrow";
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 }
 
 function timeLabel(item: AgendaItem): string {
@@ -57,21 +75,38 @@ function timeLabel(item: AgendaItem): string {
   const e = new Date(item.end);
   const fmt: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" };
   if (s.toDateString() === e.toDateString()) {
-    return `${s.toLocaleTimeString(undefined, fmt)}–${e.toLocaleTimeString(undefined, fmt)}`;
+    return `${s.toLocaleTimeString(undefined, fmt)} – ${e.toLocaleTimeString(undefined, fmt)}`;
   }
   return s.toLocaleTimeString(undefined, fmt);
 }
 
-function groupByDay(items: AgendaItem[]) {
-  const map = new Map<string, AgendaItem[]>();
+function groupByDay(items: AgendaItem[]): DayGroup[] {
+  const map = new Map<string, DayGroup>();
   for (const item of items) {
     const iso = item.kind === "todo" ? item.deadline : item.start;
     const label = dayLabel(iso);
-    const list = map.get(label) ?? [];
-    list.push(item);
-    map.set(label, list);
+    const existing = map.get(label);
+    if (existing) {
+      existing.items.push(item);
+      continue;
+    }
+    map.set(label, { label, iso, items: [item] });
   }
-  return [...map.entries()].map(([label, dayItems]) => ({ label, items: dayItems }));
+  return [...map.values()];
+}
+
+function scheduledDatesFromItems(items: AgendaItem[]): Date[] {
+  const seen = new Set<string>();
+  const dates: Date[] = [];
+  for (const item of items) {
+    const iso = item.kind === "todo" ? item.deadline : item.start;
+    const key = toLocalDateInput(new Date(iso));
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const parsed = parseLocalDate(key);
+    if (parsed) dates.push(parsed);
+  }
+  return dates;
 }
 
 export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
@@ -82,13 +117,14 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState(() => toLocalDateInput(new Date()));
   const [dueTime, setDueTime] = useState("");
-  const [dateOpen, setDateOpen] = useState(false);
   const selectedDate = parseLocalDate(dueDate);
   const now = new Date();
+  const [viewMonth, setViewMonth] = useState(() => selectedDate ?? now);
+  const { startMonth, endMonth } = calendarMonthRange(now);
 
   const headers = useMemo(
     () => ({ Authorization: `Bearer ${token}`, "Content-Type": "application/json" }),
-    [token]
+    [token],
   );
 
   const load = useCallback(async () => {
@@ -113,6 +149,7 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
   }, [load]);
 
   const grouped = useMemo(() => groupByDay(items), [items]);
+  const scheduledDates = useMemo(() => scheduledDatesFromItems(items), [items]);
 
   const addTodo = async (e: FormEvent) => {
     e.preventDefault();
@@ -138,7 +175,6 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
       playBeep("success");
       setTitle("");
       setDueTime("");
-      setDueDate(toLocalDateInput(new Date()));
       await load();
     } catch {
       playBeep("error");
@@ -176,135 +212,154 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
     }
   };
 
-  const toggleGoogle = async () => {
-    playBeep("click");
-    if (googleConnected) {
-      await fetch(`${env.VITE_API_URL}/api/google/calendar/disconnect`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setGoogleConnected(false);
-      await load();
-      return;
-    }
-    const res = await fetch(`${env.VITE_API_URL}/api/google/auth/url`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    if (data.url) globalThis.location.href = data.url;
-  };
-
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
+      <div className="flex w-full justify-center py-20 animate-fade-in">
         <Loader2 className="size-6 animate-spin text-zinc-600" strokeWidth={1.2} />
       </div>
     );
   }
 
+  const selectedDateLabel = selectedDate
+    ? selectedDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+    : null;
+
   return (
-    <div className="w-full max-w-xl animate-scale-up">
-      <div className="mb-5 flex items-center justify-end gap-3">
-        <AppButton variant="icon" onClick={() => { playBeep("click"); load(); }} title="Refresh" icon={<RefreshCw className="size-4" strokeWidth={1.4} />} silent />
-        <AppButton variant="icon" onClick={toggleGoogle} title={googleConnected ? "Disconnect Google" : "Connect Google"} silent>
-          <span className={`size-2 rounded-full ${googleConnected ? "bg-emerald-400" : "bg-zinc-600"}`} />
-        </AppButton>
+    <div className="w-full max-w-3xl animate-fade-in select-none">
+      <div className="mx-auto mb-10 w-full max-w-[20.5rem] overflow-visible sm:max-w-[22rem]">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          month={viewMonth}
+          onMonthChange={setViewMonth}
+          defaultMonth={selectedDate ?? now}
+          captionLayout="label"
+          startMonth={startMonth}
+          endMonth={endMonth}
+          modifiers={{ scheduled: scheduledDates }}
+          showOutsideDays
+          formatters={{
+            formatCaption: (date) =>
+              date.toLocaleDateString(undefined, { month: "long", year: "numeric" }),
+          }}
+          className="w-full [--cell-size:2.35rem] p-0 sm:[--cell-size:2.5rem]"
+          classNames={{
+            root: "w-full",
+            months: "w-full",
+            month: "w-full gap-2",
+            nav: "hidden",
+            outside: "text-zinc-700 opacity-45",
+          }}
+          onSelect={(date) => {
+            if (!date) return;
+            setDueDate(toLocalDateInput(date));
+            setViewMonth(date);
+          }}
+        />
       </div>
 
-      <form onSubmit={addTodo} className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <form
+        onSubmit={addTodo}
+        className="mb-10 flex flex-col gap-3 border-b border-white/[0.06] pb-8 sm:flex-row sm:items-end"
+      >
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Todo"
-          className="min-w-0 flex-1 border-b border-white/15 bg-transparent py-2 text-sm text-white outline-none placeholder:text-zinc-700 focus:border-white/40"
+          placeholder="Add a todo"
+          aria-label="Todo title"
+          className={underlineFieldClass}
         />
-        <Popover open={dateOpen} onOpenChange={setDateOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 border-b border-white/15 py-2 font-mono text-sm text-zinc-400 outline-none hover:border-white/40 hover:text-zinc-200",
-                dateOpen && "border-white/40 text-zinc-200"
-              )}
-            >
-              {selectedDate
-                ? selectedDate.toLocaleDateString(undefined, { day: "numeric", month: "short" })
-                : "Date"}
-              <CalendarIcon className="size-3.5 opacity-60" strokeWidth={1.5} />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-auto border-white/10 bg-[#09090e] p-0 text-white ring-white/10"
-            align="end"
+        <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+          <span
+            className="whitespace-nowrap font-mono text-[12px] uppercase tracking-[0.18em] text-zinc-600"
+            title="Selected date"
           >
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              defaultMonth={selectedDate ?? now}
-              captionLayout="dropdown"
-              startMonth={calendarMonthRange(now).startMonth}
-              endMonth={calendarMonthRange(now).endMonth}
-              onSelect={(date) => {
-                if (!date) return;
-                setDueDate(toLocalDateInput(date));
-                setDateOpen(false);
-              }}
-            />
-          </PopoverContent>
-        </Popover>
-        <input
-          type="time"
-          value={dueTime}
-          onChange={(e) => setDueTime(e.target.value)}
-          className="border-b border-white/15 bg-transparent py-2 font-mono text-sm text-zinc-400 outline-none focus:border-white/40"
-        />
-        <AppButton type="submit" variant="icon" disabled={busy} className="shrink-0 self-end sm:self-auto" title="Add" silent>
-          {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" strokeWidth={1.5} />}
-        </AppButton>
+            {selectedDateLabel ?? "Pick date"}
+          </span>
+          <TimePicker value={dueTime} onChange={setDueTime} />
+          <AppButton
+            type="submit"
+            variant="icon"
+            disabled={busy}
+            title="Add todo"
+            silent
+            className="min-h-[40px] min-w-[40px] border-white/15 text-zinc-400 hover:border-white/30 hover:text-white"
+          >
+            {busy ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Plus className="size-4" strokeWidth={1.5} />
+            )}
+          </AppButton>
+        </div>
       </form>
 
       {grouped.length === 0 ? (
-        <p className="py-16 text-center font-mono text-[13px] uppercase tracking-[0.25em] text-zinc-700">Nothing scheduled</p>
+        <EmptyState
+          icon={<CalendarDays />}
+          message="Nothing scheduled"
+          description="Select a day above, add a todo, or connect Google Calendar."
+          className="py-12"
+        />
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-7">
           {grouped.map((group) => (
             <section key={group.label}>
-              <h3 className="mb-2 font-mono text-[13px] uppercase tracking-[0.28em] text-zinc-600">{group.label}</h3>
-              <ul className="flex flex-col gap-1">
-                {group.items.map((item) => {
+              <SectionHeader title={group.label} count={group.items.length} borderless className="mb-1" />
+              <ul>
+                {group.items.map((item, index) => {
                   const isTodo = item.kind === "todo";
+                  const isLast = index === group.items.length - 1;
                   return (
                     <li
                       key={`${item.kind}-${item.id}`}
                       className={cn(
-                        "group flex items-center gap-3 border-b border-white/5 py-2",
-                        isTodo && "pl-0"
+                        "group flex items-center gap-3 py-3.5 transition-app",
+                        !isLast && "border-b border-white/[0.04]",
                       )}
                     >
                       {isTodo ? (
-                        <button type="button" onClick={() => completeTodo(item.id)} className="text-zinc-600 hover:text-white">
+                        <button
+                          type="button"
+                          onClick={() => completeTodo(item.id)}
+                          className="shrink-0 text-zinc-600 transition-app motion-press hover:text-white"
+                          title="Mark complete"
+                        >
                           <Circle className="size-3.5" strokeWidth={1.3} />
                         </button>
                       ) : (
-                        <span className="size-3.5 shrink-0 rounded-full border border-white/25" />
+                        <span className="flex size-3.5 shrink-0 items-center justify-center" title="Google event">
+                          <span className="size-1 rounded-full bg-zinc-500" />
+                        </span>
                       )}
-                      <span className="min-w-0 flex-1 truncate text-sm text-white">
+                      <p className="min-w-0 flex-1 truncate text-[15px] font-light tracking-tight text-white">
                         {isTodo ? item.title : item.summary}
+                      </p>
+                      <span className="shrink-0 font-mono text-[12px] tabular-nums tracking-wide text-zinc-500">
+                        {timeLabel(item)}
                       </span>
-                      <span className="shrink-0 font-mono text-[13px] text-zinc-600">{timeLabel(item)}</span>
                       {isTodo ? (
                         <button
                           type="button"
                           onClick={() => deleteTodo(item.id)}
-                          className="text-zinc-600 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:text-white p-1"
+                          className="shrink-0 p-1 text-zinc-700 opacity-100 transition-app hover:text-white lg:opacity-0 lg:group-hover:opacity-100 motion-press"
+                          title="Delete"
                         >
                           <Trash2 className="size-3.5" strokeWidth={1.4} />
                         </button>
                       ) : item.htmlLink ? (
-                        <a href={item.htmlLink} target="_blank" rel="noreferrer" className="text-zinc-600 hover:text-white">
+                        <a
+                          href={item.htmlLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="shrink-0 p-1 text-zinc-700 transition-app hover:text-white motion-press"
+                          title="Open in Google Calendar"
+                        >
                           <ExternalLink className="size-3.5" strokeWidth={1.4} />
                         </a>
-                      ) : null}
+                      ) : (
+                        <span className="size-[22px] shrink-0" aria-hidden />
+                      )}
                     </li>
                   );
                 })}
