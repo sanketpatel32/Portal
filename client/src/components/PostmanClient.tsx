@@ -8,7 +8,7 @@ import {
   Clock,
   Globe,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, createId } from "@/lib/utils";
 import { parseApiError } from "@/lib/parse-api-error";
 import { validateInput } from "@/lib/form-validation";
 import { proxyRequestSchema } from "@shared/validation/postman";
@@ -106,7 +106,7 @@ const EXAMPLES: Array<{ label: string; method: HttpMethod; url: string }> = [
 ];
 
 function newRow(key = "", value = "", enabled = true): KeyValue {
-  return { id: crypto.randomUUID(), key, value, enabled };
+  return { id: createId(), key, value, enabled };
 }
 
 function buildInitialRows(): KeyValue[] {
@@ -262,7 +262,7 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
       setHistory((prev) =>
         [
           {
-            id: crypto.randomUUID(),
+            id: createId(),
             method,
             url: url.trim(),
             status: data.status,

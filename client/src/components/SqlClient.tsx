@@ -14,7 +14,7 @@ import {
   Plug,
   Shield,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, createId } from "@/lib/utils";
 import { type ConnectionStatus } from "@/lib/connection-status";
 import { DbClientToolbarButtons } from "@/lib/db-client-toolbar";
 import { ConnectionPanel } from "./shared/ConnectionPanel";
@@ -358,7 +358,7 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
           playBeep("success");
           setHistory((prev) => [
             {
-              id: crypto.randomUUID(),
+              id: createId(),
               query: sql,
               executedAt: new Date().toISOString(),
               executionTimeMs: queryResult.executionTimeMs,
@@ -371,7 +371,7 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
           showError(msg);
           setHistory((prev) => [
             {
-              id: crypto.randomUUID(),
+              id: createId(),
               query: sql,
               executedAt: new Date().toISOString(),
               executionTimeMs: elapsed,
@@ -412,7 +412,7 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
     const name = saveName.trim();
     if (!name || !query.trim()) return;
     setSavedQueries((prev) => [
-      { id: crypto.randomUUID(), name, query: query.trim(), createdAt: new Date().toISOString() },
+      { id: createId(), name, query: query.trim(), createdAt: new Date().toISOString() },
       ...prev,
     ]);
     setSaveName("");
