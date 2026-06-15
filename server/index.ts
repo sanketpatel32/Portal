@@ -44,12 +44,63 @@ const MIME_BY_EXT: Record<string, string> = {
   ".map": "application/json; charset=utf-8",
 };
 
+// Text assets compress well (~70% smaller) and account for the bulk of the
+// initial payload. Only these types are worth gzipping on a 1 GB box.
+const GZIP_EXTENSIONS = new Set([
+  ".html",
+  ".js",
+  ".mjs",
+  ".css",
+  ".json",
+  ".svg",
+  ".map",
+]);
+
+// Vite asset filenames are content-hashed, so their bytes never change. Memoize
+// the gzipped payload per absolute path so we compress each file at most once.
+// (Uint8Array typing varies across TS/@types/bun versions, hence the loose type.)
+const gzipCache = new Map<string, Uint8Array>();
+
+function clientAcceptsGzip(req: Request): boolean {
+  return /\bgzip\b/i.test(req.headers.get("accept-encoding") || "");
+}
+
+/** Compress a Bun file to gzip bytes, memoized by path for immutable assets. */
+async function gzipFile(absPath: string, file: Bun.BunFile, memoize: boolean): Promise<Uint8Array> {
+  const cached = gzipCache.get(absPath);
+  if (cached) return cached;
+  // gzipSync needs a buffer (string or typed array), not a Blob — read the file
+  // into bytes first. Hashed assets are immutable so we compress only once.
+  const compressed = Bun.gzipSync(new Uint8Array(await file.arrayBuffer())) as Uint8Array;
+  if (memoize) gzipCache.set(absPath, compressed);
+  return compressed;
+}
+
+/** Serve the SPA entry HTML (no-cache, gzip when accepted). */
+function serveSpaIndex(req: Request): Response {
+  const file = Bun.file(INDEX_HTML);
+  if (clientAcceptsGzip(req)) {
+    // index.html is small and changes per-deploy, so compress inline (no memo).
+    return new Response(file.stream().pipeThrough(new CompressionStream("gzip")), {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Encoding": "gzip",
+        "Cache-Control": "no-cache",
+        Vary: "Accept-Encoding",
+      },
+    });
+  }
+  return new Response(file, {
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" },
+  });
+}
+
 /**
  * Resolve a static asset from client/dist for the given URL, or null to let
  * the caller fall back to the SPA index.html. Returns null on directory
  * traversal attempts, directories, or missing files — never throws.
  */
-async function serveStaticAsset(url: URL): Promise<Response | null> {
+async function serveStaticAsset(url: URL, req: Request): Promise<Response | null> {
   // Only try to serve paths that look like a file (have an extension). Any
   // extensionless path (e.g. "/", "/expenses", "/clock") is a client-side
   // route and must fall through to index.html for the SPA router to handle.
@@ -68,12 +119,29 @@ async function serveStaticAsset(url: URL): Promise<Response | null> {
 
     const ext = requested.slice(requested.lastIndexOf(".")).toLowerCase();
     const isHashedAsset = pathname.startsWith("/assets/");
+    const contentType = MIME_BY_EXT[ext] ?? "application/octet-stream";
+    const cacheControl = isHashedAsset
+      ? "public, max-age=31536000, immutable"
+      : "no-cache";
+
+    // Gzip compressible text assets when the client accepts it. Hashed assets
+    // are immutable so the compressed bytes are memoized for the process life.
+    if (GZIP_EXTENSIONS.has(ext) && clientAcceptsGzip(req)) {
+      const compressed = await gzipFile(requested, file, isHashedAsset);
+      return new Response(compressed, {
+        headers: {
+          "Content-Type": contentType,
+          "Content-Encoding": "gzip",
+          "Cache-Control": cacheControl,
+          Vary: "Accept-Encoding",
+        },
+      });
+    }
+
     return new Response(file, {
       headers: {
-        "Content-Type": MIME_BY_EXT[ext] ?? "application/octet-stream",
-        "Cache-Control": isHashedAsset
-          ? "public, max-age=31536000, immutable"
-          : "no-cache",
+        "Content-Type": contentType,
+        "Cache-Control": cacheControl,
       },
     });
   } catch {
@@ -137,12 +205,10 @@ const server = Bun.serve({
     // No API route matched. If a client build exists, serve it (static asset
     // or SPA fallback to index.html). Pure API clients still get a JSON 404.
     if (hasClientBuild && !url.pathname.startsWith("/api/")) {
-      const asset = await serveStaticAsset(url);
+      const asset = await serveStaticAsset(url, req);
       if (asset) return asset;
       // Unknown path → SPA entry so client-side routing can take over.
-      return new Response(Bun.file(INDEX_HTML), {
-        headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" },
-      });
+      return serveSpaIndex(req);
     }
 
     return jsonResponse(req, { error: "Endpoint not found" }, 404);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import type { AppOneSubappId } from "./types/app";
 import { playBeep } from "./lib/audio";
@@ -10,17 +10,40 @@ import {
 } from "./lib/app-navigation";
 import { PinLockScreen } from "./components/PinLockScreen";
 import { NewtonsCradle } from "./components/NewtonsCradle";
-import { ClockTimerAlarm } from "./components/ClockTimerAlarm";
-import { GithubAnalyser } from "./components/GithubAnalyser";
-import { ExpenseTracker } from "./components/ExpenseTracker";
-import { NoSqlClient } from "./components/NoSqlClient";
-import { SqlClient } from "./components/SqlClient";
-import { PostmanClient } from "./components/PostmanClient";
-import { WritingAgent } from "./components/WritingAgent";
-import { BookmarkManager } from "./components/BookmarkManager";
 import { ModuleHeaderBar } from "./components/ui/ModuleHeaderBar";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
+import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { cn } from "./lib/utils";
+
+// Heavy subapps are code-split: each becomes its own lazy chunk loaded only when
+// the user opens that tile. This keeps the initial PIN-screen payload small
+// (React + PinLockScreen + NewtonsCradle) instead of shipping the entire app
+// (SQL/NoSQL/Postman/Expense/GitHub/Writing/Clock/Bookmark + radix/day-picker)
+// to every visitor up front.
+const ClockTimerAlarm = lazy(() =>
+  import("./components/ClockTimerAlarm").then((m) => ({ default: m.ClockTimerAlarm })),
+);
+const GithubAnalyser = lazy(() =>
+  import("./components/GithubAnalyser").then((m) => ({ default: m.GithubAnalyser })),
+);
+const ExpenseTracker = lazy(() =>
+  import("./components/ExpenseTracker").then((m) => ({ default: m.ExpenseTracker })),
+);
+const NoSqlClient = lazy(() =>
+  import("./components/NoSqlClient").then((m) => ({ default: m.NoSqlClient })),
+);
+const SqlClient = lazy(() =>
+  import("./components/SqlClient").then((m) => ({ default: m.SqlClient })),
+);
+const PostmanClient = lazy(() =>
+  import("./components/PostmanClient").then((m) => ({ default: m.PostmanClient })),
+);
+const WritingAgent = lazy(() =>
+  import("./components/WritingAgent").then((m) => ({ default: m.WritingAgent })),
+);
+const BookmarkManager = lazy(() =>
+  import("./components/BookmarkManager").then((m) => ({ default: m.BookmarkManager })),
+);
 
 const placeholderSubappIds = new Set<AppOneSubappId>(["subapp8", "subapp9", "subapp10"]);
 
@@ -120,6 +143,13 @@ function App() {
               : "overflow-x-hidden overflow-y-auto"
           )}
         >
+          <Suspense
+            fallback={
+              <div className="flex flex-1 items-center justify-center">
+                <LoadingSpinner />
+              </div>
+            }
+          >
           {activeApp === 2 ? (
             <ClockTimerAlarm
               token={token}
@@ -246,6 +276,7 @@ function App() {
               </div>
             </div>
           )}
+          </Suspense>
         </div>
       )}
 

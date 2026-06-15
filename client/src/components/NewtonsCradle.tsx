@@ -186,9 +186,14 @@ export const NewtonsCradle: React.FC<NewtonsCradleProps> = ({
   // Setup simulation, canvas resize handling, and render loop
   useEffect(() => {
     if (!isAuthenticated) return;
-    
+
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    // When a subapp overlay is open the canvas is blurred + non-interactive, so
+    // running a 60fps physics/canvas loop wastes CPU & battery. The loop below
+    // self-pauses whenever activeAppRef is set and resumes on return.
+    let paused = activeAppRef.current !== null;
     
     const handleResize = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -515,6 +520,19 @@ export const NewtonsCradle: React.FC<NewtonsCradleProps> = ({
     };
 
     const renderLoop = (time: number) => {
+      // Pause work while a subapp overlay is active (canvas is hidden/blurred).
+      if (activeAppRef.current !== null) {
+        if (!paused) paused = true;
+        lastTime = time;
+        animationId = requestAnimationFrame(renderLoop);
+        return;
+      }
+      // Resuming after a pause: keep dt sane instead of a single huge step.
+      if (paused) {
+        lastTime = time;
+        paused = false;
+      }
+
       const dtFrame = Math.min((time - lastTime) / 1000, 0.1);
       lastTime = time;
 

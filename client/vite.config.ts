@@ -12,4 +12,23 @@ export default defineConfig({
       "@shared": path.resolve(__dirname, "../shared"),
     },
   },
+  build: {
+    // Subapps are React.lazy code-split, so each route chunk is well under the
+    // default 500KB hint. The only "large" chunk is the shared index (React +
+    // framework shell), which is stable and cacheable across app updates.
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        // Pin React + ReactDOM into its own long-term-cacheable chunk so that
+        // app-only changes don't bust the browser cache for the framework.
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react-dom") || /node_modules[\\/]react[\\/]/.test(id)) {
+              return "react-vendor";
+            }
+          }
+        },
+      },
+    },
+  },
 })

@@ -1,6 +1,7 @@
 import { TaskModel, createTaskSchema, updateTaskSchema, isDbConnected } from "../db";
 import { getResponseHeaders } from "../http-context";
 import { invalidObjectIdResponse, updateFailureResponse, publishDeleteSuccess, readPathId } from "./helpers";
+import { invalidateTaskCountCache } from "./metrics";
 import { parseJsonBody } from "../request-validation";
 import mongoose from "mongoose";
 import type { RouteContext } from "./types";
@@ -47,6 +48,7 @@ export async function handleTasks(ctx: RouteContext): Promise<Response | null> {
       await newTask.save();
 
       const taskJSON = newTask.toJSON();
+      invalidateTaskCountCache();
 
       server.publish("activity", JSON.stringify({
         type: "task_created",
@@ -116,6 +118,8 @@ export async function handleTasks(ctx: RouteContext): Promise<Response | null> {
             headers: getResponseHeaders(req),
           });
         }
+
+        invalidateTaskCountCache();
 
         return publishDeleteSuccess(req, server, {
           activityType: "task_deleted",
