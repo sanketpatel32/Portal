@@ -47,6 +47,12 @@ const envSchema = z.object({
     (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
     z.string().min(1).optional(),
   ),
+  // Optional GitHub PAT. Raises rate limit from 10 req/min (unauthenticated)
+  // to 5000 req/hour when present. Empty string = not configured.
+  GITHUB_TOKEN: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().min(1).optional(),
+  ),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -69,4 +75,8 @@ export function isGoogleCalendarConfigured(): boolean {
 
 export function isOpenRouterConfigured(): boolean {
   return Boolean(env.OPENROUTER_API_KEY);
+}
+
+export function isGithubTokenConfigured(): boolean {
+  return Boolean(env.GITHUB_TOKEN);
 }

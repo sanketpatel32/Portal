@@ -1,136 +1,218 @@
-export type GithubRepoResult = {
-  id: number;
-  full_name: string;
-  html_url: string;
-  description: string | null;
-  stargazers_count: number;
-  forks_count: number;
-  open_issues_count: number;
-  language: string | null;
-  pushed_at: string;
-  topics?: string[];
+import type { MatchOptions, MatchProfile } from "@shared/validation/github";
+import {
+  CONTRIBUTION_TYPES,
+  DIFFICULTY_LEVELS,
+  FALLBACK_LABELS,
+} from "@shared/validation/github";
+
+export {
+  CONTRIBUTION_TYPES,
+  DIFFICULTY_LEVELS,
+  FALLBACK_LABELS,
 };
 
-export type GithubSearchSort = "help-wanted-issues" | "stars" | "updated" | "forks";
-export type GithubIssueSignal = "help-wanted" | "good-first" | "both" | "any-open";
+export type { MatchOptions, MatchProfile };
 
-export const githubFrameworkOptions = [
-  { value: "react", label: "React" },
-  { value: "nextjs", label: "Next.js" },
-  { value: "vue", label: "Vue" },
-  { value: "nuxt", label: "Nuxt" },
-  { value: "angular", label: "Angular" },
-  { value: "svelte", label: "Svelte" },
-  { value: "solidjs", label: "SolidJS" },
-  { value: "preact", label: "Preact" },
-  { value: "qwik", label: "Qwik" },
-  { value: "lit", label: "Lit" },
-  { value: "astro", label: "Astro" },
-  { value: "remix", label: "Remix" },
-  { value: "gatsby", label: "Gatsby" },
-  { value: "tailwindcss", label: "Tailwind CSS" },
-  { value: "nodejs", label: "Node.js" },
-  { value: "bun", label: "Bun" },
-  { value: "deno", label: "Deno" },
-  { value: "express", label: "Express" },
-  { value: "fastify", label: "Fastify" },
-  { value: "nestjs", label: "NestJS" },
-  { value: "hono", label: "Hono" },
-  { value: "koa", label: "Koa" },
-  { value: "fastapi", label: "FastAPI" },
-  { value: "django", label: "Django" },
-  { value: "flask", label: "Flask" },
-  { value: "rails", label: "Ruby on Rails" },
-  { value: "spring", label: "Spring" },
-  { value: "laravel", label: "Laravel" },
-  { value: "symfony", label: "Symfony" },
-  { value: "phoenix", label: "Phoenix" },
-  { value: "gin", label: "Gin (Go)" },
-  { value: "fiber", label: "Fiber (Go)" },
-  { value: "actix-web", label: "Actix Web" },
-  { value: "rocket", label: "Rocket (Rust)" },
-  { value: "aspnetcore", label: "ASP.NET Core" },
-  { value: "flutter", label: "Flutter" },
-  { value: "react-native", label: "React Native" },
-  { value: "expo", label: "Expo" },
-  { value: "ionic", label: "Ionic" },
-  { value: "swiftui", label: "SwiftUI" },
-  { value: "jetpack-compose", label: "Jetpack Compose" },
-  { value: "electron", label: "Electron" },
-  { value: "tauri", label: "Tauri" },
-  { value: "tensorflow", label: "TensorFlow" },
-  { value: "pytorch", label: "PyTorch" },
-  { value: "langchain", label: "LangChain" },
-  { value: "prisma", label: "Prisma" },
-  { value: "supabase", label: "Supabase" },
-  { value: "graphql", label: "GraphQL" },
-  { value: "kubernetes", label: "Kubernetes" },
-  { value: "terraform", label: "Terraform" },
-  { value: "docker", label: "Docker" },
-  { value: "typescript", label: "TypeScript" },
-  { value: "rust", label: "Rust" },
-  { value: "go", label: "Go" },
-  { value: "python", label: "Python" },
-  { value: "java", label: "Java" },
-  { value: "kotlin", label: "Kotlin" },
-  { value: "swift", label: "Swift" },
-  { value: "elixir", label: "Elixir" },
-  { value: "php", label: "PHP" },
-  { value: "ruby", label: "Ruby" },
+export const DEFAULT_PROFILE: MatchProfile = {
+  userSkills: [],
+  userLanguages: [],
+  userFrameworks: [],
+  userDomains: [],
+  userDifficultyLevel: "easy",
+  userAvailableHoursPerWeek: 4,
+  preferredContributionTypes: ["documentation", "bug", "tests"],
+};
+
+export const DEFAULT_OPTIONS: MatchOptions = {
+  maxResults: 20,
+  includeForks: false,
+  minStars: 0,
+  maxStars: 5000,
+  preferredLabels: [...FALLBACK_LABELS],
+};
+
+export const SAMPLE_BEGINNER_PROFILE: MatchProfile = {
+  userSkills: ["javascript", "react", "css", "html"],
+  userLanguages: ["TypeScript", "JavaScript"],
+  userFrameworks: ["React", "Next.js"],
+  userDomains: ["frontend", "documentation", "ui"],
+  userDifficultyLevel: "easy",
+  userAvailableHoursPerWeek: 4,
+  preferredContributionTypes: ["documentation", "bug", "tests"],
+};
+
+export const GITHUB_SKILL_SUGGESTIONS = [
+  "javascript",
+  "typescript",
+  "python",
+  "go",
+  "rust",
+  "java",
+  "kotlin",
+  "swift",
+  "ruby",
+  "php",
+  "c++",
+  "c#",
+  "react",
+  "next.js",
+  "vue",
+  "nuxt",
+  "svelte",
+  "solid",
+  "angular",
+  "astro",
+  "remix",
+  "tailwindcss",
+  "css",
+  "html",
+  "sass",
+  "node.js",
+  "bun",
+  "deno",
+  "express",
+  "fastify",
+  "hono",
+  "nestjs",
+  "fastapi",
+  "django",
+  "flask",
+  "rails",
+  "spring",
+  "laravel",
+  "prisma",
+  "drizzle",
+  "supabase",
+  "graphql",
+  "trpc",
+  "rest",
+  "grpc",
+  "postgresql",
+  "mysql",
+  "sqlite",
+  "mongodb",
+  "redis",
+  "elasticsearch",
+  "jest",
+  "vitest",
+  "playwright",
+  "cypress",
+  "pytest",
+  "docker",
+  "kubernetes",
+  "terraform",
+  "github actions",
+  "ci/cd",
+  "vite",
+  "webpack",
+  "rollup",
+  "esbuild",
+  "turborepo",
+  "monorepo",
 ];
 
-export const githubLanguageOptions = [
-  "Any language",
+export const GITHUB_LANGUAGES = [
   "TypeScript",
   "JavaScript",
   "Python",
-  "Java",
   "Go",
   "Rust",
+  "Java",
+  "Kotlin",
+  "Swift",
   "C#",
   "C++",
   "PHP",
   "Ruby",
-  "Swift",
-  "Kotlin",
-  "Dart",
   "Elixir",
+  "Dart",
   "Shell",
-  "HTML",
-  "CSS",
+  "Scala",
+  "Lua",
+  "R",
 ];
 
-export const githubTopicOptions = [
-  { value: "", label: "Any topic" },
-  { value: "frontend", label: "Frontend" },
-  { value: "backend", label: "Backend" },
-  { value: "api", label: "API" },
-  { value: "database", label: "Database" },
-  { value: "devtools", label: "Developer tools" },
-  { value: "testing", label: "Testing" },
-  { value: "documentation", label: "Documentation" },
-  { value: "accessibility", label: "Accessibility" },
-  { value: "security", label: "Security" },
-  { value: "machine-learning", label: "Machine learning" },
-  { value: "cloud-native", label: "Cloud native" },
-  { value: "web-components", label: "Web components" },
-  { value: "cli", label: "CLI" },
+export const GITHUB_FRAMEWORKS = [
+  "React",
+  "Next.js",
+  "Vue",
+  "Nuxt",
+  "Svelte",
+  "SvelteKit",
+  "Astro",
+  "Remix",
+  "Angular",
+  "Solid",
+  "Node.js",
+  "Express",
+  "Fastify",
+  "Hono",
+  "NestJS",
+  "FastAPI",
+  "Django",
+  "Flask",
+  "Rails",
+  "Laravel",
+  "Spring",
+  "Phoenix",
+  "Flutter",
+  "React Native",
+  "Expo",
+  "Tauri",
+  "Electron",
+  "Tailwind CSS",
+  "Prisma",
+  "Drizzle",
+  "Supabase",
 ];
 
-export const githubStarOptions = [0, 10, 50, 100, 500, 1000, 5000];
-export const githubResultsPerPage = 4;
-
-export const githubRecencyOptions = [
-  { value: 30, label: "Last 30 days" },
-  { value: 90, label: "Last 90 days" },
-  { value: 180, label: "Last 6 months" },
-  { value: 365, label: "Last 12 months" },
-  { value: 730, label: "Last 2 years" },
-  { value: 0, label: "Any time" },
+export const GITHUB_DOMAINS = [
+  "frontend",
+  "backend",
+  "api",
+  "cli",
+  "devtools",
+  "documentation",
+  "testing",
+  "accessibility",
+  "security",
+  "performance",
+  "ui",
+  "ux",
+  "design-system",
+  "database",
+  "mobile",
+  "desktop",
+  "machine-learning",
+  "ai",
+  "data-science",
+  "infra",
+  "cloud",
+  "webassembly",
+  "blockchain",
+  "game-dev",
+  "education",
 ];
 
-export const getIsoDateDaysAgo = (days: number) => {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
+export const DIFFICULTY_LABELS: Record<MatchProfile["userDifficultyLevel"], string> = {
+  easy: "Easy / first PR",
+  medium: "Medium / some experience",
+  hard: "Hard / complex change",
 };
+
+export const DIFFICULTY_PILL_CLASS: Record<"easy" | "medium" | "hard", string> = {
+  easy: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
+  medium: "border-amber-500/40 bg-amber-500/10 text-amber-300",
+  hard: "border-red-500/40 bg-red-500/10 text-red-300",
+};
+
+export const SCORE_TIER: Array<{ min: number; label: string; className: string }> = [
+  { min: 80, label: "Strong match", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" },
+  { min: 65, label: "Solid match", className: "border-sky-500/40 bg-sky-500/10 text-sky-300" },
+  { min: 45, label: "Possible", className: "border-amber-500/40 bg-amber-500/10 text-amber-300" },
+  { min: 0, label: "Weak", className: "border-zinc-500/40 bg-zinc-500/10 text-zinc-400" },
+];
+
+export function tierForScore(score: number): (typeof SCORE_TIER)[number] {
+  return SCORE_TIER.find((tier) => score >= tier.min) ?? SCORE_TIER[SCORE_TIER.length - 1];
+}

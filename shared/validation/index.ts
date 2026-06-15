@@ -8,3 +8,4 @@ export * from "./postman";
 export * from "./query";
 export * from "./bookmark";
 export * from "./websocket";
+export * from "./github";

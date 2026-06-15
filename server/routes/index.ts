@@ -10,6 +10,7 @@ import { handlePostman } from "./postman";
 import { handleWriting } from "./writing";
 import { handleBookmarks } from "./bookmark";
 import { handleMetrics } from "./metrics";
+import { handleGithub } from "./github";
 
 export const routeHandlers: RouteHandler[] = [
   handleAuth,
@@ -23,4 +24,5 @@ export const routeHandlers: RouteHandler[] = [
   handlePostman,
   handleWriting,
   handleBookmarks,
+  handleGithub,
 ];
