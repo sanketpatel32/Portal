@@ -10,6 +10,40 @@ interface CopyButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
   copiedLabel?: string;
 }
 
+/**
+ * Copies text to the clipboard, working in any context.
+ *
+ * `navigator.clipboard` is only available in secure contexts (HTTPS or
+ * localhost). On plain-HTTP deploys it is undefined, so we fall back to the
+ * legacy hidden-textarea + execCommand("copy") path, which works everywhere.
+ */
+async function copyText(value: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  // Place off-screen so it doesn't scroll or flash, but keep it focusable
+  // (display:none / readOnly can prevent copying on some browsers).
+  textarea.style.position = "fixed";
+  textarea.style.top = "0";
+  textarea.style.left = "0";
+  textarea.style.opacity = "0";
+  textarea.setAttribute("aria-hidden", "true");
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
+  if (!ok) throw new Error("Clipboard copy failed");
+}
+
 export const CopyButton: React.FC<CopyButtonProps> = ({
   text,
   onCopied,
@@ -26,12 +60,18 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
       const valueToCopy = typeof text === "function" ? text() : text;
       if (!valueToCopy) return;
 
-      navigator.clipboard.writeText(valueToCopy).then(() => {
-        setCopied(true);
-        playBeep("click");
-        onCopied?.();
-        setTimeout(() => setCopied(false), 2000);
-      });
+      copyText(valueToCopy)
+        .then(() => {
+          setCopied(true);
+          playBeep("click");
+          onCopied?.();
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch((err) => {
+          // Never swallow silently — surface to console so a dead clipboard
+          // is diagnosable instead of looking like a broken button.
+          console.error("CopyButton: copy failed", err);
+        });
     },
     [text, onCopied]
   );
