@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-export const writingModeSchema = z.enum(["grammar", "improve", "linkedin", "twitter"]);
+export const writingModeSchema = z.enum([
+  "grammar",
+  "improve",
+  "linkedin",
+  "twitter",
+  "prompts",
+]);
 export const writingToneSchema = z.enum([
   "neutral",
   "concise",

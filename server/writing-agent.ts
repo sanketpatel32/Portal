@@ -46,7 +46,13 @@ const TONE_LABEL: Record<WritingTone, string> = {
   academic: "academic and precise",
 };
 
-const VALID_MODES = new Set<WritingMode>(["grammar", "improve", "linkedin", "twitter"]);
+const VALID_MODES = new Set<WritingMode>([
+  "grammar",
+  "improve",
+  "linkedin",
+  "twitter",
+  "prompts",
+]);
 const VALID_TONES = new Set<WritingTone>(Object.keys(TONE_LABEL) as WritingTone[]);
 
 function buildGrammarPrompt(instruction: string | undefined): string {
@@ -139,6 +145,50 @@ function buildTwitterPrompt(tone: WritingTone, instruction: string | undefined):
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+function buildPromptsPrompt(instruction: string | undefined): string {
+  // Generates a high-quality, structured prompt for AI coding agents
+  // (Claude, Cursor, Copilot, Codex, etc.). Tone is irrelevant here.
+  const customLine = instruction?.trim()
+    ? `Additional context from the user (weave into the relevant sections; do not contradict): ${instruction.trim()}`
+    : "";
+
+  return [
+    "You are an expert prompt engineer for AI coding agents (Claude, Cursor, GitHub Copilot, Codex, and similar).",
+    "The user gives you a rough coding task or feature description.",
+    "Turn it into a single, self-contained, copy-paste-ready prompt that another developer could hand to an AI coding agent to execute reliably and safely.",
+    "",
+    "OUTPUT FORMAT (mandatory — follow this structure exactly, using these markdown headers in this order):",
+    "## Role",
+    "  One sentence naming the expertise the agent should adopt (e.g. 'senior React engineer', 'backend architect').",
+    "## Context",
+    "  The concrete technical context: language, framework, relevant files/paths, current behavior. Infer reasonable defaults ONLY when the user's input implies them; otherwise write '[fill in: ...]' placeholders rather than guessing specific paths or library versions.",
+    "## Task",
+    "  A precise, unambiguous statement of what to build or change. Prefer a single clear goal; split sub-goals as bullet points if needed.",
+    "## Requirements",
+    "  Explicit, testable requirements the solution must satisfy (bullet list).",
+    "## Constraints",
+    "  Hard limits: must not break existing behavior, must match existing patterns, no new dependencies unless asked, minimal diff, etc.",
+    "## Approach",
+    "  A suggested step-by-step plan the agent should follow (numbered). Include 'read the relevant code first', 'make the smallest change', and 'verify'.",
+    "## Success Criteria",
+    "  How to know it's done and correct: build passes, tests pass, specific observable behavior. Bullet list.",
+    "## Guardrails",
+    "  Safety rules: never edit unrelated code, match the surrounding code style and naming, ask before large or ambiguous changes, do not delete or overwrite without reading first, report failures honestly.",
+    "",
+    "QUALITY RULES:",
+    "- Be specific and concrete. Vague prompts are useless.",
+    "- Do NOT invent file paths, function names, library versions, or metrics the user did not provide. Use '[fill in: X]' placeholders instead.",
+    "- Do NOT add commentary, explanations, or notes outside the structured prompt.",
+    "- Do NOT wrap the output in markdown code fences or quotation marks.",
+    "- Do NOT add a preamble like 'Here is your prompt' or a trailer like 'Let me know if you want changes'.",
+    "- Keep the same language as the input.",
+    "- Return ONLY the structured prompt, starting with '## Role'.",
+    customLine,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function describeError(status: number, body: string): string {
@@ -240,6 +290,8 @@ function buildPromptForMode(
       return buildLinkedInPrompt(tone, instruction);
     case "twitter":
       return buildTwitterPrompt(tone, instruction);
+    case "prompts":
+      return buildPromptsPrompt(instruction);
     default: {
       // Exhaustiveness guard — if a new mode is added to the union but not
       // handled here, this fails at compile time.
@@ -307,9 +359,20 @@ export async function improveWriting(
           { role: "user", content: input },
         ],
         // Grammar and Twitter want tight, deterministic output; Improve and
-        // LinkedIn allow a little creative phrasing.
-        temperature: mode === "grammar" || mode === "twitter" ? 0 : 0.5,
-        max_tokens: mode === "twitter" ? 512 : 3072,
+        // LinkedIn allow a little creative phrasing. Prompts needs structured,
+        // low-creativity output but a higher token ceiling (8 sections).
+        temperature:
+          mode === "grammar" || mode === "twitter"
+            ? 0
+            : mode === "prompts"
+              ? 0.4
+              : 0.5,
+        max_tokens:
+          mode === "twitter"
+            ? 512
+            : mode === "prompts"
+              ? 4096
+              : 3072,
       }),
       signal: controller.signal,
     });

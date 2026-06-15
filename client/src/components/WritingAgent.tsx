@@ -7,6 +7,7 @@ import {
   Eraser,
   PenLine,
   Sparkles,
+  Terminal,
   Wand2,
 } from "lucide-react";
 import { env } from "@/env";
@@ -39,7 +40,7 @@ type Props = {
   playBeep: (type: "success" | "error" | "click") => void;
 };
 
-type WritingMode = "grammar" | "improve" | "linkedin" | "twitter";
+type WritingMode = "grammar" | "improve" | "linkedin" | "twitter" | "prompts";
 
 type WritingTone =
   | "neutral"
@@ -91,6 +92,11 @@ const MODE_OPTIONS: Array<{
     label: "Tweet (X)",
     hint: "Condenses your input into a single tweet, max 280 characters.",
   },
+  {
+    value: "prompts",
+    label: "Agent Prompt",
+    hint: "Turns your rough coding task into a polished, structured prompt for AI coding agents (Claude, Cursor, Copilot) — role, context, constraints, success criteria, and guardrails.",
+  },
 ];
 
 const PLACEHOLDER_BY_MODE: Record<WritingMode, string> = {
@@ -102,6 +108,8 @@ const PLACEHOLDER_BY_MODE: Record<WritingMode, string> = {
     "Drop your rough notes or thoughts here. They'll be shaped into a ready-to-post LinkedIn update. Press Ctrl/Cmd + Enter to run.",
   twitter:
     "Drop your idea or notes here. They'll be condensed into a single tweet (max 280 chars). Press Ctrl/Cmd + Enter to run.",
+  prompts:
+    "Describe the coding task in plain words. e.g. 'add a dark mode toggle to the settings page that remembers the choice'. Add stack/paths/constraints in the Custom instruction field. Press Ctrl/Cmd + Enter to generate.",
 };
 
 const TONE_OPTIONS: Array<{ value: WritingTone; label: string }> = [
@@ -117,18 +125,34 @@ const TONE_OPTIONS: Array<{ value: WritingTone; label: string }> = [
 
 const STORAGE_KEY = "writing_agent_settings";
 
-const EXAMPLES: string[] = [
+const WRITING_EXAMPLES: string[] = [
   "hey so basically we wanna move the meeting to next tuesday if thats ok with everyone, lmk asap thx",
   "This PR fixes the bug were users couldn't login. It was caused by a race condition in the auth middleware that we found last week.",
   "I think we should probably maybe consider looking into the new framework because the old one is kinda slow and outdated honestly.",
 ];
+
+const PROMPT_EXAMPLES: string[] = [
+  "Add a dark mode toggle to the settings page. It should remember the user's choice across page reloads and default to the system preference on first visit.",
+  "Refactor the login flow to use JWT access + refresh tokens instead of session cookies. The frontend should silently refresh on 401 responses.",
+  "Add unit tests for the expense calculator utility covering rounding edge cases, currency conversion, and empty/invalid input.",
+];
+
+function getExamples(mode: WritingMode): string[] {
+  return mode === "prompts" ? PROMPT_EXAMPLES : WRITING_EXAMPLES;
+}
 
 function loadSettings(): {
   mode: WritingMode;
   tone: WritingTone;
   instruction: string;
 } {
-  const validModes = new Set<WritingMode>(["grammar", "improve", "linkedin", "twitter"]);
+  const validModes = new Set<WritingMode>([
+    "grammar",
+    "improve",
+    "linkedin",
+    "twitter",
+    "prompts",
+  ]);
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -203,7 +227,9 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
         ? "Write LinkedIn post"
         : mode === "twitter"
           ? "Write tweet"
-          : "Improve writing";
+          : mode === "prompts"
+            ? "Generate prompt"
+            : "Improve writing";
   const runningLabel =
     mode === "grammar"
       ? "Fixing…"
@@ -211,7 +237,9 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
         ? "Writing…"
         : mode === "twitter"
           ? "Writing…"
-          : "Improving…";
+          : mode === "prompts"
+            ? "Generating…"
+            : "Improving…";
 
   const runIcon =
     mode === "grammar" ? (
@@ -220,6 +248,8 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
       <AtSign className="size-3.5" strokeWidth={1.6} />
     ) : mode === "linkedin" ? (
       <Briefcase className="size-3.5" strokeWidth={1.6} />
+    ) : mode === "prompts" ? (
+      <Terminal className="size-3.5" strokeWidth={1.6} />
     ) : (
       <Wand2 className="size-3.5" strokeWidth={1.6} />
     );
@@ -277,13 +307,14 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
   }, [playBeep]);
 
   const handleExample = useCallback(() => {
-    const sample = EXAMPLES[Math.floor(Math.random() * EXAMPLES.length)];
+    const pool = getExamples(mode);
+    const sample = pool[Math.floor(Math.random() * pool.length)];
     setInput(sample);
     setOutput("");
     setError(null);
     setMeta(null);
     playBeep("click");
-  }, [playBeep]);
+  }, [mode, playBeep]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Ctrl/Cmd + Enter triggers the run.
@@ -322,6 +353,8 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
                   <Wand2 className="size-3" strokeWidth={1.6} />
                 ) : opt.value === "linkedin" ? (
                   <Briefcase className="size-3" strokeWidth={1.6} />
+                ) : opt.value === "prompts" ? (
+                  <Terminal className="size-3" strokeWidth={1.6} />
                 ) : (
                   <AtSign className="size-3" strokeWidth={1.6} />
                 ),
@@ -337,14 +370,14 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
         <div
           className={cn(
             "flex flex-col gap-2",
-            mode === "grammar" && "pointer-events-none opacity-40",
+            (mode === "grammar" || mode === "prompts") && "pointer-events-none opacity-40",
           )}
         >
           <span className={sectionLabelClass}>
             Tone{" "}
-            {mode === "grammar" && (
+            {(mode === "grammar" || mode === "prompts") && (
               <span className="font-normal normal-case tracking-normal text-zinc-600">
-                (used in Improve mode)
+                {mode === "prompts" ? "(not used for prompts)" : "(used in Improve mode)"}
               </span>
             )}
           </span>
@@ -352,7 +385,7 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
             tabs={TONE_OPTIONS.map((opt) => ({
               id: opt.value,
               label: opt.label,
-              disabled: mode === "grammar",
+              disabled: mode === "grammar" || mode === "prompts",
             }))}
             active={tone}
             onChange={(id) => setTone(id as WritingTone)}
