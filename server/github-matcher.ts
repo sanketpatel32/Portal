@@ -68,6 +68,7 @@ type GhRepo = {
   pushed_at: string;
   updated_at: string;
   archived: boolean;
+  fork: boolean;
   has_issues: boolean;
   default_branch: string;
   topics?: string[];
@@ -218,9 +219,6 @@ function buildIssueQueries(profile: MatchProfile, options: MatchOptions): string
   const baseQualifiers = [
     "is:open",
     "is:public",
-    options.includeForks ? "fork:true" : "fork:false",
-    options.minStars > 0 ? `stars:>=${options.minStars}` : "",
-    options.maxStars > 0 ? `stars:<=${options.maxStars}` : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -268,7 +266,14 @@ async function fetchQuery(query: string): Promise<GhIssue[]> {
     per_page: String(PER_QUERY_PER_PAGE),
   });
   const result = await ghFetch<{ items?: GhIssue[] }>(`${GITHUB_API}/search/issues?${params}`);
-  if (!result.ok) return [];
+  if (!result.ok) {
+    console.error(`[github-matcher] Query failed: status=${result.status} error="${result.error}" query="${query}"`);
+    return [];
+  }
+  const count = result.data.items?.length ?? 0;
+  if (count === 0) {
+    console.warn(`[github-matcher] Query returned 0 results: "${query}"`);
+  }
   return Array.isArray(result.data.items) ? result.data.items : [];
 }
 
@@ -366,11 +371,21 @@ async function enrichCandidates(
 // Step 4: hard filter
 // ─────────────────────────────────────────────────────────────────────────────
 
-function passesHardFilter(c: EnrichedCandidate, maxStars: number, maxAgeDays: number): boolean {
+function passesHardFilter(
+  c: EnrichedCandidate,
+  minStars: number,
+  maxStars: number,
+  includeForks: boolean,
+  maxAgeDays: number,
+): boolean {
   if (c.repo.archived) return false;
+  // Unless the user opted into forks, exclude them. Moved here from the search
+  // query so the same rule applies regardless of how candidates were fetched.
+  if (!includeForks && c.repo.fork) return false;
   if (c.issueDetail.assignees.length > 0) return false;
   if (c.issueDetail.pull_request) return false;
   if (c.issueDetail.comments > 15) return false;
+  if (minStars > 0 && c.repo.stargazers_count < minStars) return false;
   if (maxStars > 0 && c.repo.stargazers_count > maxStars) return false;
 
   const lastActivity = new Date(c.issueDetail.updated_at).getTime();
@@ -710,7 +725,7 @@ export async function matchIssues(
   const enriched = await enrichCandidates(deduped);
 
   // Step 4: hard filter.
-  const filtered = enriched.filter((c) => passesHardFilter(c, options.maxStars, 90));
+  const filtered = enriched.filter((c) => passesHardFilter(c, options.minStars, options.maxStars, options.includeForks, 90));
 
   // If the hard filter rejected everything (e.g. very restrictive profile),
   // surface that as a warning so the UI can show it.

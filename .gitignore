@@ -97,6 +97,9 @@ test-results/
 # ─── Desktop wrapper build output ───────────────────────────
 desktop/dist/
 desktop/release/
+desktop/release2/
+desktop/release3/
+desktop/release4/
 desktop/node_modules/
 # Ignore everything the build generates under resources/, except the icon
 # sources (small, needed at build time — regenerate with:

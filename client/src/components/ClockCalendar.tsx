@@ -117,6 +117,8 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState(() => toLocalDateInput(new Date()));
   const [dueTime, setDueTime] = useState("");
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const selectedDate = parseLocalDate(dueDate);
   const now = new Date();
   const [viewMonth, setViewMonth] = useState(() => selectedDate ?? now);
@@ -153,6 +155,9 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
 
   const addTodo = async (e: FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+    setSyncWarning(null);
+    
     const deadline = dueTime ? `${dueDate}T${dueTime}:00` : `${dueDate}T23:59:00`;
     const validated = validateInput(createClockTodoSchema, {
       title,
@@ -161,7 +166,9 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
       syncToGoogle: googleConnected,
     });
     if (!validated.ok) {
-      return playBeep("error");
+      setErrorMessage(validated.message || "Invalid input");
+      playBeep("error");
+      return;
     }
 
     setBusy(true);
@@ -171,12 +178,25 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
         headers,
         body: JSON.stringify(validated.data),
       });
-      if (!res.ok) throw new Error();
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: "Failed to create todo" }));
+        throw new Error(errorData.error || "Failed to create todo");
+      }
+      
+      const data = await res.json();
       playBeep("success");
       setTitle("");
       setDueTime("");
+      
+      // Show sync warning if present
+      if (data.syncWarning) {
+        setSyncWarning(data.syncWarning);
+      }
+      
       await load();
-    } catch {
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to create todo");
       playBeep("error");
     } finally {
       setBusy(false);
@@ -259,7 +279,10 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
       >
         <input
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setErrorMessage(null);
+          }}
           placeholder="Add a todo"
           aria-label="Todo title"
           className={underlineFieldClass}
@@ -289,6 +312,34 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
           </AppButton>
         </div>
       </form>
+
+      {errorMessage && (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300 animate-fade-in">
+          <span className="flex-1">{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="shrink-0 text-red-400 transition-colors hover:text-red-200"
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {syncWarning && (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300 animate-fade-in">
+          <span className="flex-1">{syncWarning}</span>
+          <button
+            type="button"
+            onClick={() => setSyncWarning(null)}
+            className="shrink-0 text-amber-400 transition-colors hover:text-amber-200"
+            aria-label="Dismiss warning"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {grouped.length === 0 ? (
         <EmptyState

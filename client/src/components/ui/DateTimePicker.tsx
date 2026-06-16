@@ -96,13 +96,15 @@ export function DateTimePicker({
   const timeOptions = useMemo(() => buildTimeOptions(), []);
 
   useEffect(() => {
+    // Always keep viewMonth in sync with the date prop
+    const parsed = parseLocalDate(date);
+    if (parsed) setViewMonth(parsed);
+    
+    // Reset to step 1 on close
     if (!open) {
-      // reset to step 1 on close
       const id = setTimeout(() => setStep("date"), 200);
       return () => clearTimeout(id);
     }
-    const parsed = parseLocalDate(date);
-    if (parsed) setViewMonth(parsed);
   }, [open, date]);
 
   useEffect(() => {

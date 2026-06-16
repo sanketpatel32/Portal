@@ -98,15 +98,24 @@ export async function buildClockAgenda(days = 14): Promise<{
 export async function createClockTodo(validated: CreateClockTodoInput) {
   const deadline = parseClockTodoDeadline(validated.deadline, validated.allDay);
 
+  // Google Calendar sync is best-effort. If the token is missing, expired, or
+  // lacks the calendar.events scope, the todo must still be saved — sync is a
+  // secondary feature and must never block the core create. The sync flag is
+  // recorded so a later re-auth can backfill the event.
   let googleEventId: string | undefined;
+  let syncWarning: string | undefined;
   if (validated.syncToGoogle) {
-    const status = await getGoogleCalendarStatus();
-    if (status.connected) {
-      googleEventId = await createGoogleCalendarEventForTodo({
-        title: validated.title,
-        deadline,
-        allDay: validated.allDay,
-      });
+    try {
+      const status = await getGoogleCalendarStatus();
+      if (status.connected) {
+        googleEventId = await createGoogleCalendarEventForTodo({
+          title: validated.title,
+          deadline,
+          allDay: validated.allDay,
+        });
+      }
+    } catch (err) {
+      syncWarning = err instanceof Error ? err.message : "Google Calendar sync failed";
     }
   }
 
@@ -118,7 +127,7 @@ export async function createClockTodo(validated: CreateClockTodoInput) {
     googleEventId,
   });
 
-  return todo.toJSON();
+  return { ...todo.toJSON(), ...(syncWarning ? { syncWarning } : {}) };
 }
 
 export async function updateClockTodo(id: string, validated: UpdateClockTodoInput) {
