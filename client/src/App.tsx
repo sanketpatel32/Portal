@@ -50,7 +50,7 @@ const placeholderSubappIds = new Set<AppOneSubappId>(["subapp8", "subapp9", "sub
 const appOneSubapps: Array<{ id: AppOneSubappId; label: string; detail: string }> = [
   {
     id: "github-issue-analyser",
-    label: "GitHub Issue Analyser",
+    label: "GitHub Finder",
     detail: "Find open-source repos with open issues and contribution signals",
   },
   {
@@ -115,8 +115,12 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden flex flex-col font-sans select-none">
-      
+    <div className="min-h-screen bg-black text-white relative overflow-hidden flex flex-col font-sans">
+      {/* NOTE: no global `select-none` — it blocked selecting/copying output
+          text (issue titles, comments, query results). Interactive controls
+          that shouldn't be selectable (buttons, chips) opt in per-element
+          with their own `select-none` utility class. */}
+
       {/* Decorative ambient glowing grids behind blur */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-white/[0.04] rounded-full blur-[100px] pointer-events-none animate-pulse-glow" />
       <div 

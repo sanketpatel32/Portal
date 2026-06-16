@@ -39,6 +39,7 @@ import { Pagination } from "./ui/Pagination";
 import { FormField } from "./shared/FormField";
 import { CopyButton } from "./ui/CopyButton";
 import { AppInput } from "./ui/AppInput";
+import { SearchableMultiSelect } from "./ui/SearchableMultiSelect";
 import { ToolPanel } from "./ui/ToolPanel";
 import { fieldClass, panelClass } from "@/lib/form-styles";
 import { interactiveCardClass } from "@/lib/ui-classes";
@@ -50,7 +51,30 @@ interface GithubAnalyserProps {
 
 const RESULTS_PER_PAGE = 5;
 const MAX_SKILL_SUGGESTIONS_VISIBLE = 8;
-const MAX_OPTIONS_VISIBLE = 30;
+
+/**
+ * De-duplicate an option list (case-insensitive, first occurrence wins).
+ * Defensive: most source lists are already unique, but this guarantees a
+ * duplicate never renders in a dropdown even if a constant is edited later.
+ */
+function dedup(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    const key = item.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+// De-duplicated option lists, memoized once at module load.
+const LANGUAGES = dedup(GITHUB_LANGUAGES);
+const FRAMEWORKS = dedup(GITHUB_FRAMEWORKS);
+const DOMAINS = dedup(GITHUB_DOMAINS);
+const CONTRIBUTION_TYPE_OPTIONS = dedup([...CONTRIBUTION_TYPES]);
+const FALLBACK_LABEL_OPTIONS = dedup([...FALLBACK_LABELS]);
 
 type MobileTab = "filters" | "results";
 type AuthBadge = "loading" | "authenticated" | "unauthenticated" | "unknown";
@@ -81,11 +105,17 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
     saveOptions(options);
   }, [options]);
 
-  // Probe auth status on mount.
+  // Probe the server's GitHub token status on mount. This reports whether the
+  // *server* has a GITHUB_TOKEN configured (5000/hr) — NOT whether this client
+  // is logged in. If we can't reach the probe, stay "unknown" rather than
+  // wrongly claiming the server has no token.
   useEffect(() => {
     const token = window.localStorage.getItem("auraflow_pin_token");
     if (!token) {
-      setAuthBadge("unauthenticated");
+      // Not signed in to the app — we can't query /api/github/status, so we
+      // genuinely don't know the server's token state. Don't show a misleading
+      // "no token" pill.
+      setAuthBadge("unknown");
       return;
     }
     let cancelled = false;
@@ -96,7 +126,8 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
       })
       .catch(() => {
         if (cancelled) return;
-        setAuthBadge("unauthenticated");
+        // Probe failed (network/transport) — not the same as "no token".
+        setAuthBadge("unknown");
       });
     return () => {
       cancelled = true;
@@ -139,9 +170,6 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
   const removeSkill = (skill: string) => {
     setProfile((p) => ({ ...p, userSkills: p.userSkills.filter((s) => s !== skill) }));
   };
-
-  const toggleArrayItem = <T extends string>(arr: T[], item: T): T[] =>
-    arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
 
   const applySample = () => {
     setProfile(SAMPLE_BEGINNER_PROFILE);
@@ -187,17 +215,41 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
 
   return (
     <ModuleShell
-      variant="content"
+      variant="tool"
       maxWidth="6xl"
       header={
         <ModuleHeaderBar
-          title="GitHub Issue Analyser"
+          title="GitHub Finder"
           icon={<GitFork className="size-4 shrink-0 text-zinc-500" strokeWidth={1.5} />}
           onBack={onBack}
           actions={<AuthBadgePill status={authBadge} />}
         />
       }
     >
+      {/* Sticky action bar: the Find button lives here so it's always
+          reachable without scrolling, regardless of how long the profile
+          form grows. */}
+      <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-white/5 pb-3">
+        <AppButton
+          variant="primary"
+          onClick={runSearch}
+          loading={isSearching}
+          disabled={isSearching}
+          className="tracking-[0.28em]"
+          icon={!isSearching ? <Search className="size-4" /> : undefined}
+        >
+          {isSearching ? "Matching issues…" : "Find issues"}
+        </AppButton>
+        <button
+          type="button"
+          onClick={applySample}
+          disabled={isSearching}
+          className="font-mono text-[13px] uppercase tracking-[0.22em] text-zinc-500 hover:text-white transition-app motion-press py-2"
+        >
+          Try sample beginner profile
+        </button>
+      </div>
+
       <TabBar
         tabs={[
           { id: "filters", label: "Profile & search" },
@@ -206,18 +258,21 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
         active={mobileTab}
         onChange={(id) => setMobileTab(id as MobileTab)}
         variant="underline"
-        className="flex lg:hidden mb-4"
+        className="flex-shrink-0 flex lg:hidden py-3"
       />
 
       {error && (
-        <ErrorBanner message={error} onDismiss={() => setError(null)} className="mb-4" />
+        <ErrorBanner message={error} onDismiss={() => setError(null)} className="mb-3 flex-shrink-0" />
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
+      {/* Two columns that each scroll independently. The grid itself is the
+          flex-1 / min-h-0 container; each child bounds its own height and
+          scrolls internally so neither panel pushes the other off-screen. */}
+      <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
         <section
           className={cn(
             panelClass,
-            "self-start",
+            "min-h-0 overflow-y-auto",
             mobileTab === "filters" ? "block" : "hidden lg:block",
           )}
         >
@@ -252,34 +307,12 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
             filteredSkillSuggestions={filteredSkillSuggestions}
             addSkill={addSkill}
             removeSkill={removeSkill}
-            toggleArrayItem={toggleArrayItem}
           />
-
-          <div className="mt-6 flex flex-col gap-2">
-            <AppButton
-              variant="primary"
-              onClick={runSearch}
-              loading={isSearching}
-              disabled={isSearching}
-              className="w-full py-3.5 tracking-[0.28em]"
-              icon={!isSearching ? <Search className="size-4" /> : undefined}
-            >
-              {isSearching ? "Matching issues…" : "Find issues"}
-            </AppButton>
-            <button
-              type="button"
-              onClick={applySample}
-              disabled={isSearching}
-              className="font-mono text-[13px] uppercase tracking-[0.22em] text-zinc-500 hover:text-white transition-app motion-press py-2"
-            >
-              Try sample beginner profile
-            </button>
-          </div>
         </section>
 
         <ToolPanel
           className={cn(
-            "min-h-[320px] lg:min-h-[560px] bg-white/[0.025]",
+            "min-h-0 overflow-y-auto bg-white/[0.025]",
             mobileTab === "results" ? "block" : "hidden lg:block",
           )}
         >
@@ -357,7 +390,10 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
 // ─── Subcomponents ─────────────────────────────────────────────────────────
 
 const AuthBadgePill: React.FC<{ status: AuthBadge }> = ({ status }) => {
-  if (status === "loading") return null;
+  // "loading" / "unknown" → don't render. "unknown" means we couldn't probe the
+  // server (not signed in, or the request failed) — showing a pill here would
+  // be misleading since we don't actually know the server's token state.
+  if (status === "loading" || status === "unknown") return null;
   if (status === "authenticated") {
     return (
       <span className="font-mono text-[13px] uppercase tracking-[0.22em] text-emerald-400 inline-flex items-center gap-1.5">
@@ -367,7 +403,7 @@ const AuthBadgePill: React.FC<{ status: AuthBadge }> = ({ status }) => {
   }
   if (status === "unauthenticated") {
     return (
-      <span className="font-mono text-[13px] uppercase tracking-[0.22em] text-amber-400 inline-flex items-center gap-1.5" title="Add GITHUB_TOKEN to server/.env to lift the 10 req/min limit.">
+      <span className="font-mono text-[13px] uppercase tracking-[0.22em] text-amber-400 inline-flex items-center gap-1.5" title="The server has no GITHUB_TOKEN configured. Add one to server/.env to lift the 10 req/min rate limit.">
         <AlertCircle className="size-3" strokeWidth={1.5} /> no token · 10/min
       </span>
     );
@@ -388,7 +424,6 @@ interface ProfileFormProps {
   filteredSkillSuggestions: string[];
   addSkill: (v: string) => void;
   removeSkill: (v: string) => void;
-  toggleArrayItem: <T extends string>(arr: T[], item: T) => T[];
 }
 
 const ProfileForm: React.FC<ProfileFormProps> = ({
@@ -404,7 +439,6 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
   filteredSkillSuggestions,
   addSkill,
   removeSkill,
-  toggleArrayItem,
 }) => {
   return (
     <div className="flex flex-col gap-5">
@@ -465,34 +499,31 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
 
       {/* Languages */}
       <FormField label="languages">
-        <ChipMultiSelect
-          options={GITHUB_LANGUAGES}
-          selected={profile.userLanguages}
-          onToggle={(v) =>
-            setProfile((p) => ({ ...p, userLanguages: toggleArrayItem(p.userLanguages, v) }))
-          }
+        <SearchableMultiSelect
+          values={profile.userLanguages}
+          onValuesChange={(v) => setProfile((p) => ({ ...p, userLanguages: v }))}
+          options={LANGUAGES}
+          placeholder="Select languages"
         />
       </FormField>
 
       {/* Frameworks */}
       <FormField label="frameworks">
-        <ChipMultiSelect
-          options={GITHUB_FRAMEWORKS}
-          selected={profile.userFrameworks}
-          onToggle={(v) =>
-            setProfile((p) => ({ ...p, userFrameworks: toggleArrayItem(p.userFrameworks, v) }))
-          }
+        <SearchableMultiSelect
+          values={profile.userFrameworks}
+          onValuesChange={(v) => setProfile((p) => ({ ...p, userFrameworks: v }))}
+          options={FRAMEWORKS}
+          placeholder="Select frameworks"
         />
       </FormField>
 
       {/* Domains */}
       <FormField label="domains">
-        <ChipMultiSelect
-          options={GITHUB_DOMAINS}
-          selected={profile.userDomains}
-          onToggle={(v) =>
-            setProfile((p) => ({ ...p, userDomains: toggleArrayItem(p.userDomains, v) }))
-          }
+        <SearchableMultiSelect
+          values={profile.userDomains}
+          onValuesChange={(v) => setProfile((p) => ({ ...p, userDomains: v }))}
+          options={DOMAINS}
+          placeholder="Select domains"
         />
       </FormField>
 
@@ -543,18 +574,16 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
 
       {/* Contribution types */}
       <FormField label="contribution types">
-        <ChipMultiSelect
-          options={[...CONTRIBUTION_TYPES]}
-          selected={profile.preferredContributionTypes}
-          onToggle={(v) =>
+        <SearchableMultiSelect
+          values={profile.preferredContributionTypes as string[]}
+          onValuesChange={(v) =>
             setProfile((p) => ({
               ...p,
-              preferredContributionTypes: toggleArrayItem(
-                p.preferredContributionTypes as string[],
-                v,
-              ) as MatchProfile["preferredContributionTypes"],
+              preferredContributionTypes: v as MatchProfile["preferredContributionTypes"],
             }))
           }
+          options={CONTRIBUTION_TYPE_OPTIONS}
+          placeholder="Select contribution types"
         />
       </FormField>
 
@@ -609,55 +638,14 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
         </div>
 
         <FormField label="preferred labels" className="mt-2">
-          <ChipMultiSelect
-            options={[...FALLBACK_LABELS]}
-            selected={options.preferredLabels}
-            onToggle={(v) =>
-              setOptions((o) => ({ ...o, preferredLabels: toggleArrayItem(o.preferredLabels, v) }))
-            }
-            maxVisible={MAX_OPTIONS_VISIBLE}
+          <SearchableMultiSelect
+            values={options.preferredLabels}
+            onValuesChange={(v) => setOptions((o) => ({ ...o, preferredLabels: v }))}
+            options={FALLBACK_LABEL_OPTIONS}
+            placeholder="Select preferred labels"
           />
         </FormField>
       </div>
-    </div>
-  );
-};
-
-interface ChipMultiSelectProps {
-  options: string[];
-  selected: string[];
-  onToggle: (value: string) => void;
-  maxVisible?: number;
-}
-
-const ChipMultiSelect: React.FC<ChipMultiSelectProps> = ({ options, selected, onToggle, maxVisible = 16 }) => {
-  const visible = options.slice(0, maxVisible);
-  const hidden = options.length - visible.length;
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {visible.map((opt) => {
-        const isSelected = selected.includes(opt);
-        return (
-          <button
-            key={opt}
-            type="button"
-            onClick={() => onToggle(opt)}
-            className={cn(
-              "inline-flex items-center border px-2.5 py-1 font-mono text-[13px] uppercase tracking-wider transition-app motion-press",
-              isSelected
-                ? "border-white bg-white text-black"
-                : "border-white/10 text-zinc-500 hover:border-white/30 hover:text-white",
-            )}
-          >
-            {opt}
-          </button>
-        );
-      })}
-      {hidden > 0 && (
-        <span className="font-mono text-[13px] uppercase tracking-wider text-zinc-600 self-center">
-          +{hidden} more (type to add)
-        </span>
-      )}
     </div>
   );
 };
