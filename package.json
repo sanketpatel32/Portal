@@ -2,7 +2,7 @@
   "name": "auraflow-workspace",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["client", "server", "shared", "desktop"],
+  "workspaces": ["client", "server", "shared"],
   "scripts": {
     "dev": "bun run dev.ts",
     "build": "bun run --filter client build",
