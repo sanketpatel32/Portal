@@ -1,0 +1,29 @@
+{
+	"name": "auraflow-desktop",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Electron desktop wrapper for AuraFlow (Bun server + Vite React client).",
+	"main": "dist/main.js",
+	"type": "module",
+	"author": {
+		"name": "AuraFlow",
+		"email": "noreply@auraflow.local"
+	},
+	"scripts": {
+		"build:main": "tsc -p tsconfig.json",
+		"build:server": "node scripts/build-server.mjs",
+		"build:client": "node scripts/build-client.mjs",
+		"setup": "bun run build:server && bun run build:client && bun run build:main",
+		"dev": "bun run setup && electron .",
+		"start": "electron .",
+		"verify": "node scripts/verify.mjs",
+		"package": "bun run setup && electron-builder --win --x64",
+		"package:dir": "bun run setup && electron-builder --win --x64 --dir"
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.0",
+		"electron": "^33.2.0",
+		"electron-builder": "^25.1.8",
+		"typescript": "~5.9.0"
+	}
+}

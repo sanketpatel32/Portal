@@ -3,7 +3,9 @@
   "entry": [
     "dev.ts",
     "client/src/main.tsx",
-    "server/index.ts"
+    "server/index.ts",
+    "desktop/electron/main.ts",
+    "desktop/electron/preload.ts"
   ],
   "ignorePatterns": [
     ".opencode/**",

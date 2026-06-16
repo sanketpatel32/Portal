@@ -1,0 +1,35 @@
+appId: com.auraflow.desktop
+productName: AuraFlow
+copyright: Copyright © 2026
+directories:
+  output: release
+asar: true
+asarUnpack:
+  # The compiled Bun server binary must be readable as a real file on disk
+  # (it's executed as a subprocess). Keep it outside the asar archive.
+  - resources/server/**
+  # The client bundle is read by the Bun server via fs at runtime (to serve
+  # the SPA index + assets). Bun can't read from inside an asar, so the
+  # client files must be unpacked too.
+  - resources/client/**
+files:
+  - dist/**/*
+  - resources/**/*
+  - package.json
+  - "!**/*.map"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: resources/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: AuraFlow

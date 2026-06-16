@@ -13,13 +13,38 @@ import { routeHandlers } from "./routes";
 import { getMetrics } from "./routes/metrics";
 import { chatMessageSchema } from "../shared/validation/websocket";
 import { existsSync } from "node:fs";
-import { join, normalize, sep } from "node:path";
+import { dirname, join, normalize, sep } from "node:path";
 
 // Production: when the client has been built (client/dist exists), the Bun
 // process serves the static bundle itself — no separate Vite dev server
 // needed, which saves ~100-200MB on a 1 GB box. In dev (no build present) this
 // stays dormant and the Vite dev server handles the frontend as before.
-const CLIENT_DIST = join(import.meta.dir, "..", "client", "dist");
+// Locate the static client bundle. In dev (`bun run server/index.ts`),
+// `import.meta.dir` is `server/` and the bundle is at `../client/dist`.
+// In a `bun build --compile` binary, the source is extracted to a temp
+// folder (e.g. B:\~BUN\root) so import.meta.dir is useless — fall back
+// to `process.execPath`, which IS the real on-disk binary path.
+function resolveClientDist(): string {
+	const execDir = dirname(process.execPath);
+	const candidates = [
+		join(import.meta.dir, "..", "client", "dist"), // dev: server/../client/dist
+		join(execDir, "..", "client", "dist"), // compiled: desktop/resources/server/../client/dist
+		join(execDir, "client", "dist"), // flat layout
+		// Packaged Electron: binary at win-unpacked/AuraFlow.exe, bundle at
+		// win-unpacked/resources/client/dist.
+		join(execDir, "resources", "client", "dist"),
+		// Or: bundle next to the server binary inside the asar.unpacked dir
+		// (the layout the desktop wrapper actually uses).
+		join(execDir, "resources", "app.asar.unpacked", "resources", "client", "dist"),
+		join(process.cwd(), "client", "dist"), // honour explicit CWD
+	];
+	for (const c of candidates) {
+		if (existsSync(join(c, "index.html"))) return c;
+	}
+	return candidates[0];
+}
+
+const CLIENT_DIST = resolveClientDist();
 const INDEX_HTML = join(CLIENT_DIST, "index.html");
 const hasClientBuild = existsSync(INDEX_HTML);
 

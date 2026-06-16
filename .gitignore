@@ -93,3 +93,15 @@ graphify-out/
 .netlify/
 playwright-report/
 test-results/
+
+# ─── Desktop wrapper build output ───────────────────────────
+desktop/dist/
+desktop/release/
+desktop/node_modules/
+# Ignore everything the build generates under resources/, except the icon
+# sources (small, needed at build time — regenerate with:
+# node desktop/scripts/build-icon.mjs).
+desktop/resources/*
+!desktop/resources/icon.svg
+!desktop/resources/icon.ico
+!desktop/resources/icon.png

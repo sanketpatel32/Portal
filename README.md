@@ -65,6 +65,58 @@ Simply press `Ctrl+C` in your terminal. The orchestrator will catch the interrup
 
 ---
 
+## 🖥️ Desktop App (Electron)
+
+A self-contained desktop wrapper lives in `desktop/`. It bundles the Bun-compiled
+server with the built client into an Electron shell — no Bun or Node install
+required on the target machine.
+
+```
+desktop/
+├── electron/          # main process, preload, server-manager
+├── scripts/           # build-server / build-client / verify
+├── resources/         # generated: server binary + client bundle
+├── package.json
+├── tsconfig.json
+└── electron-builder.yml
+```
+
+### First-time setup
+```bash
+bun install            # picks up the new desktop workspace
+```
+
+### Verify the build pipeline (no packaging)
+```bash
+bun run desktop:verify
+```
+This runs four steps and exits non-zero on the first failure:
+1. `bun build --compile` → `desktop/resources/server/auraflow-server.exe`
+2. `vite build` → stages `client/dist` next to the server binary
+3. `tsc -p desktop/tsconfig.json --noEmit` → typechecks the Electron main/preload
+4. Spawns the compiled server, hits `/` over loopback HTTP, asserts a 200 +
+   real `<!doctype html>` body, then tears it down.
+
+### Run the desktop app from source
+```bash
+bun run desktop:dev
+```
+This compiles the server, builds the client, then launches Electron pointed at
+the local Bun server. The first launch creates `userData/.env` (template only —
+fill in your `MONGODB_URI` and `PIN`).
+
+### Package an installer
+```bash
+bun run desktop:build   # NSIS installer + portable .exe in desktop/release/
+```
+
+### Where things live at runtime
+- `app.getPath("userData")/server.log` — server stdout/stderr
+- `app.getPath("userData")/desktop.log` — Electron main-process log
+- `app.getPath("userData")/.env` — user-editable env file
+
+---
+
 ## 🔌 API Documentation
 
 ### REST HTTP Endpoints (`http://localhost:3001`)
