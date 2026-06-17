@@ -1,13 +1,11 @@
 import type { MatchOptions, MatchProfile } from "@shared/validation/github";
 import {
   CONTRIBUTION_TYPES,
-  DIFFICULTY_LEVELS,
   FALLBACK_LABELS,
 } from "@shared/validation/github";
 
 export {
   CONTRIBUTION_TYPES,
-  DIFFICULTY_LEVELS,
   FALLBACK_LABELS,
 };
 
@@ -18,8 +16,6 @@ export const DEFAULT_PROFILE: MatchProfile = {
   userLanguages: [],
   userFrameworks: [],
   userDomains: [],
-  userDifficultyLevel: "easy",
-  userAvailableHoursPerWeek: 4,
   preferredContributionTypes: ["documentation", "bug", "tests"],
 };
 
@@ -36,12 +32,11 @@ export const SAMPLE_BEGINNER_PROFILE: MatchProfile = {
   userLanguages: ["TypeScript", "JavaScript"],
   userFrameworks: ["React", "Next.js"],
   userDomains: ["frontend", "documentation", "ui"],
-  userDifficultyLevel: "easy",
-  userAvailableHoursPerWeek: 4,
   preferredContributionTypes: ["documentation", "bug", "tests"],
 };
 
 export const GITHUB_SKILL_SUGGESTIONS = [
+  // Languages
   "javascript",
   "typescript",
   "python",
@@ -54,11 +49,17 @@ export const GITHUB_SKILL_SUGGESTIONS = [
   "php",
   "c++",
   "c#",
+  "elixir",
+  "dart",
+  "scala",
+  "lua",
+  // Frontend
   "react",
   "next.js",
   "vue",
   "nuxt",
   "svelte",
+  "sveltekit",
   "solid",
   "angular",
   "astro",
@@ -67,6 +68,12 @@ export const GITHUB_SKILL_SUGGESTIONS = [
   "css",
   "html",
   "sass",
+  "htmx",
+  "alpine.js",
+  "shadcn/ui",
+  "radix",
+  "lucide",
+  // Backend / runtime
   "node.js",
   "bun",
   "deno",
@@ -80,11 +87,15 @@ export const GITHUB_SKILL_SUGGESTIONS = [
   "rails",
   "spring",
   "laravel",
+  "phoenix",
+  "effect",
+  // Data layer
   "prisma",
   "drizzle",
   "supabase",
   "graphql",
   "trpc",
+  "tanstack",
   "rest",
   "grpc",
   "postgresql",
@@ -93,11 +104,15 @@ export const GITHUB_SKILL_SUGGESTIONS = [
   "mongodb",
   "redis",
   "elasticsearch",
+  "zod",
+  // Testing
   "jest",
   "vitest",
   "playwright",
   "cypress",
   "pytest",
+  "storybook",
+  // DevOps / tooling
   "docker",
   "kubernetes",
   "terraform",
@@ -107,8 +122,39 @@ export const GITHUB_SKILL_SUGGESTIONS = [
   "webpack",
   "rollup",
   "esbuild",
+  "biome",
+  "oxc",
   "turborepo",
   "monorepo",
+  // AI / LLM / ML
+  "langchain",
+  "langgraph",
+  "llamaindex",
+  "openai",
+  "anthropic",
+  "gemini",
+  "huggingface",
+  "pytorch",
+  "tensorflow",
+  "transformers",
+  "rag",
+  "embeddings",
+  "vector-db",
+  "pinecone",
+  "chroma",
+  "mcp",
+  "ai-agents",
+  "prompt-engineering",
+  "ollama",
+  "vllm",
+  "llm",
+  "generative-ai",
+  // Domains (cross-listed for discoverability)
+  "machine-learning",
+  "data-science",
+  "webassembly",
+  "blockchain",
+  "game-dev",
 ];
 
 export const GITHUB_LANGUAGES = [
@@ -194,11 +240,35 @@ export const GITHUB_DOMAINS = [
   "education",
 ];
 
-export const DIFFICULTY_LABELS: Record<MatchProfile["userDifficultyLevel"], string> = {
-  easy: "Easy / first PR",
-  medium: "Medium / some experience",
-  hard: "Hard / complex change",
-};
+/**
+ * Combined, de-duplicated tech list for the unified "Skills & tech" picker.
+ * Unions skills + languages + frameworks so the user picks from ONE list while
+ * the matcher still receives entries routed to the right backing array (see
+ * `techCategoryFor` in GithubAnalyser). Kept in sync with the three source
+ * arrays above — editing those will automatically flow through here.
+ */
+export const GITHUB_TECH: string[] = dedupCaseInsensitive([
+  ...GITHUB_SKILL_SUGGESTIONS,
+  ...GITHUB_LANGUAGES,
+  ...GITHUB_FRAMEWORKS,
+]);
+
+/**
+ * Case-insensitive de-duplication that preserves the first-seen casing. Used to
+ * merge the skills/languages/frameworks source lists without "react" + "React"
+ * both appearing in the picker.
+ */
+function dedupCaseInsensitive(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    const key = item.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
 
 export const DIFFICULTY_PILL_CLASS: Record<"easy" | "medium" | "hard", string> = {
   easy: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",

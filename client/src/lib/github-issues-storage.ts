@@ -23,13 +23,6 @@ function readProfile(raw: unknown): MatchProfile {
     userLanguages: readArray(obj.userLanguages),
     userFrameworks: readArray(obj.userFrameworks),
     userDomains: readArray(obj.userDomains),
-    userDifficultyLevel:
-      obj.userDifficultyLevel === "easy" ||
-      obj.userDifficultyLevel === "medium" ||
-      obj.userDifficultyLevel === "hard"
-        ? obj.userDifficultyLevel
-        : DEFAULT_PROFILE.userDifficultyLevel,
-    userAvailableHoursPerWeek: clampNumber(obj.userAvailableHoursPerWeek, 1, 40, DEFAULT_PROFILE.userAvailableHoursPerWeek),
     preferredContributionTypes: readArray(obj.preferredContributionTypes) as MatchProfile["preferredContributionTypes"],
   };
 }

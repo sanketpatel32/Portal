@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -9,7 +9,6 @@ import {
   SlidersHorizontal,
   Sparkles,
   Star,
-  X,
 } from "lucide-react";
 import { playBeep } from "../lib/audio";
 import { fetchGithubStatus, runMatch } from "../lib/github-matcher";
@@ -18,14 +17,12 @@ import {
   CONTRIBUTION_TYPES,
   DEFAULT_OPTIONS,
   DEFAULT_PROFILE,
-  DIFFICULTY_LABELS,
-  DIFFICULTY_LEVELS,
   DIFFICULTY_PILL_CLASS,
   FALLBACK_LABELS,
   GITHUB_DOMAINS,
   GITHUB_FRAMEWORKS,
   GITHUB_LANGUAGES,
-  GITHUB_SKILL_SUGGESTIONS,
+  GITHUB_TECH,
   SAMPLE_BEGINNER_PROFILE,
   tierForScore,
 } from "../constants/github";
@@ -40,7 +37,6 @@ import { EmptyState } from "./ui/EmptyState";
 import { Pagination } from "./ui/Pagination";
 import { FormField } from "./shared/FormField";
 import { CopyButton } from "./ui/CopyButton";
-import { AppInput } from "./ui/AppInput";
 import { SearchableMultiSelect } from "./ui/SearchableMultiSelect";
 import { ToolPanel } from "./ui/ToolPanel";
 import { fieldClass, panelClass } from "@/lib/form-styles";
@@ -52,7 +48,36 @@ interface GithubAnalyserProps {
 }
 
 const RESULTS_PER_PAGE = 5;
-const MAX_SKILL_SUGGESTIONS_VISIBLE = 8;
+
+// Lowercased membership sets used to route a combined "Skills & tech" selection
+// back into the three backing arrays the matcher queries separately. Built once
+// at module load from the canonical language/framework option lists.
+const LANGUAGE_SET = new Set(GITHUB_LANGUAGES.map((l) => l.toLowerCase()));
+const FRAMEWORK_SET = new Set(GITHUB_FRAMEWORKS.map((f) => f.toLowerCase()));
+
+/**
+ * Given the full combined selection from the unified picker, split it back into
+ * the languages / frameworks / skills arrays the server expects. An entry is a
+ * "language" if it matches GITHUB_LANGUAGES (case-insensitive), a "framework"
+ * if it matches GITHUB_FRAMEWORKS, otherwise a plain skill. Anything not in
+ * either canonical list stays in userSkills (free-text / niche tools).
+ */
+function splitTechSelection(all: string[]): {
+  languages: string[];
+  frameworks: string[];
+  skills: string[];
+} {
+  const languages: string[] = [];
+  const frameworks: string[] = [];
+  const skills: string[] = [];
+  for (const entry of all) {
+    const key = entry.toLowerCase();
+    if (LANGUAGE_SET.has(key)) languages.push(entry);
+    else if (FRAMEWORK_SET.has(key)) frameworks.push(entry);
+    else skills.push(entry);
+  }
+  return { languages, frameworks, skills };
+}
 
 /**
  * De-duplicate an option list (case-insensitive, first occurrence wins).
@@ -72,8 +97,6 @@ function dedup(items: string[]): string[] {
 }
 
 // De-duplicated option lists, memoized once at module load.
-const LANGUAGES = dedup(GITHUB_LANGUAGES);
-const FRAMEWORKS = dedup(GITHUB_FRAMEWORKS);
 const DOMAINS = dedup(GITHUB_DOMAINS);
 const CONTRIBUTION_TYPE_OPTIONS = dedup([...CONTRIBUTION_TYPES]);
 const FALLBACK_LABEL_OPTIONS = dedup([...FALLBACK_LABELS]);
@@ -93,11 +116,6 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
   const [page, setPage] = useState(1);
   const [authBadge, setAuthBadge] = useState<AuthBadge>("loading");
   const [mobileTab, setMobileTab] = useState<MobileTab>("filters");
-
-  // ── Skill input autocomplete state ─────────────────────────────────────
-  const [skillInput, setSkillInput] = useState("");
-  const [skillInputFocused, setSkillInputFocused] = useState(false);
-  const skillInputRef = useRef<HTMLInputElement>(null);
 
   // Persist on every change (cheap; profile is small).
   useEffect(() => {
@@ -150,28 +168,6 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
       profile.preferredContributionTypes.length === 0,
     [profile],
   );
-
-  const filteredSkillSuggestions = useMemo(() => {
-    const q = skillInput.trim().toLowerCase();
-    const already = new Set(profile.userSkills.map((s) => s.toLowerCase()));
-    const pool = GITHUB_SKILL_SUGGESTIONS.filter((s) => !already.has(s.toLowerCase()));
-    if (!q) return pool.slice(0, MAX_SKILL_SUGGESTIONS_VISIBLE);
-    return pool.filter((s) => s.toLowerCase().includes(q)).slice(0, MAX_SKILL_SUGGESTIONS_VISIBLE);
-  }, [skillInput, profile.userSkills]);
-
-  // ── Profile mutators ────────────────────────────────────────────────────
-  const addSkill = (raw: string) => {
-    const v = raw.trim();
-    if (!v) return;
-    if (v.length > 64) return;
-    if (profile.userSkills.some((s) => s.toLowerCase() === v.toLowerCase())) return;
-    setProfile((p) => ({ ...p, userSkills: [...p.userSkills, v] }));
-    setSkillInput("");
-  };
-
-  const removeSkill = (skill: string) => {
-    setProfile((p) => ({ ...p, userSkills: p.userSkills.filter((s) => s !== skill) }));
-  };
 
   const applySample = () => {
     setProfile(SAMPLE_BEGINNER_PROFILE);
@@ -301,14 +297,6 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
             setProfile={setProfile}
             options={options}
             setOptions={setOptions}
-            skillInput={skillInput}
-            setSkillInput={setSkillInput}
-            skillInputFocused={skillInputFocused}
-            setSkillInputFocused={setSkillInputFocused}
-            skillInputRef={skillInputRef}
-            filteredSkillSuggestions={filteredSkillSuggestions}
-            addSkill={addSkill}
-            removeSkill={removeSkill}
           />
         </section>
 
@@ -418,14 +406,6 @@ interface ProfileFormProps {
   setProfile: React.Dispatch<React.SetStateAction<MatchProfile>>;
   options: MatchOptions;
   setOptions: React.Dispatch<React.SetStateAction<MatchOptions>>;
-  skillInput: string;
-  setSkillInput: (v: string) => void;
-  skillInputFocused: boolean;
-  setSkillInputFocused: (v: boolean) => void;
-  skillInputRef: React.RefObject<HTMLInputElement | null>;
-  filteredSkillSuggestions: string[];
-  addSkill: (v: string) => void;
-  removeSkill: (v: string) => void;
 }
 
 const ProfileForm: React.FC<ProfileFormProps> = ({
@@ -433,89 +413,37 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
   setProfile,
   options,
   setOptions,
-  skillInput,
-  setSkillInput,
-  skillInputFocused,
-  setSkillInputFocused,
-  skillInputRef,
-  filteredSkillSuggestions,
-  addSkill,
-  removeSkill,
 }) => {
+  // The unified picker is bound to the concatenation of the three backing
+  // arrays; on change we route each entry back to its category so the server's
+  // per-field query branches keep working unchanged.
+  const combinedTech = [
+    ...profile.userSkills,
+    ...profile.userLanguages,
+    ...profile.userFrameworks,
+  ];
+
+  const handleTechChange = (all: string[]) => {
+    const { languages, frameworks, skills } = splitTechSelection(all);
+    setProfile((p) => ({
+      ...p,
+      userSkills: skills,
+      userLanguages: languages,
+      userFrameworks: frameworks,
+    }));
+  };
+
   return (
     <div className="flex flex-col gap-5">
-      {/* Skills */}
-      <FormField label="skills">
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          {profile.userSkills.map((skill) => (
-            <button
-              key={skill}
-              type="button"
-              onClick={() => removeSkill(skill)}
-              className="inline-flex items-center gap-1.5 border border-white/15 bg-white/[0.04] px-2 py-1 font-mono text-[13px] text-white hover:border-red-500/40 hover:text-red-300 transition-app motion-press"
-              title={`Remove ${skill}`}
-            >
-              {skill}
-              <X className="size-3" strokeWidth={1.5} />
-            </button>
-          ))}
-        </div>
-        <div className="relative">
-          <AppInput
-            ref={skillInputRef}
-            inputSize="sm"
-            type="text"
-            value={skillInput}
-            onChange={(e) => setSkillInput(e.target.value)}
-            onFocus={() => setSkillInputFocused(true)}
-            onBlur={() => setTimeout(() => setSkillInputFocused(false), 120)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === ",") {
-                e.preventDefault();
-                addSkill(skillInput);
-              } else if (e.key === "Backspace" && skillInput === "" && profile.userSkills.length > 0) {
-                removeSkill(profile.userSkills[profile.userSkills.length - 1]);
-              }
-            }}
-            placeholder="Type a skill and press Enter (e.g. react, sql, docker)"
-            className="font-mono"
-          />
-          {skillInputFocused && filteredSkillSuggestions.length > 0 && (
-            <ul className="absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 max-h-56 overflow-y-auto border border-[var(--border-subtle)] bg-[var(--surface-input)] py-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-              {filteredSkillSuggestions.map((s) => (
-                <li
-                  key={s}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    addSkill(s);
-                  }}
-                  className="cursor-pointer px-3 py-1.5 text-[13px] font-mono text-white hover:bg-white/10"
-                >
-                  {s}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </FormField>
-
-      {/* Languages */}
-      <FormField label="languages">
+      {/* Skills & tech — one picker covering languages, frameworks, and free
+          skills. Replaces the old skills-free-text + languages + frameworks
+          trio, which overlapped heavily and tripled the picking work. */}
+      <FormField label="skills & tech">
         <SearchableMultiSelect
-          values={profile.userLanguages}
-          onValuesChange={(v) => setProfile((p) => ({ ...p, userLanguages: v }))}
-          options={LANGUAGES}
-          placeholder="Select languages"
-        />
-      </FormField>
-
-      {/* Frameworks */}
-      <FormField label="frameworks">
-        <SearchableMultiSelect
-          values={profile.userFrameworks}
-          onValuesChange={(v) => setProfile((p) => ({ ...p, userFrameworks: v }))}
-          options={FRAMEWORKS}
-          placeholder="Select frameworks"
+          values={combinedTech}
+          onValuesChange={handleTechChange}
+          options={GITHUB_TECH}
+          placeholder="Languages, frameworks, tools (e.g. react, python, langchain)"
         />
       </FormField>
 
@@ -528,51 +456,6 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
           placeholder="Select domains"
         />
       </FormField>
-
-      {/* Difficulty + hours */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <FormField label="difficulty">
-          <div className="flex flex-col gap-1.5">
-            {DIFFICULTY_LEVELS.map((d) => (
-              <label
-                key={d}
-                className={cn(
-                  "flex cursor-pointer items-center gap-2 border px-3 py-2 font-mono text-[13px] transition-app motion-press",
-                  profile.userDifficultyLevel === d
-                    ? "border-white bg-white text-black"
-                    : "border-white/10 text-zinc-400 hover:border-white/30 hover:text-white",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="difficulty"
-                  value={d}
-                  checked={profile.userDifficultyLevel === d}
-                  onChange={() => setProfile((p) => ({ ...p, userDifficultyLevel: d }))}
-                  className="sr-only"
-                />
-                {DIFFICULTY_LABELS[d]}
-              </label>
-            ))}
-          </div>
-        </FormField>
-
-        <FormField label="hours / week">
-          <AppInput
-            inputSize="sm"
-            type="number"
-            min={1}
-            max={40}
-            value={profile.userAvailableHoursPerWeek}
-            onChange={(e) => {
-              const next = Number(e.target.value);
-              if (!Number.isFinite(next)) return;
-              setProfile((p) => ({ ...p, userAvailableHoursPerWeek: Math.max(1, Math.min(40, Math.round(next))) }));
-            }}
-            className="font-mono"
-          />
-        </FormField>
-      </div>
 
       {/* Contribution types */}
       <FormField label="contribution types">

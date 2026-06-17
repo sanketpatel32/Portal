@@ -3,8 +3,6 @@ import { z } from "zod";
 const nonEmptyString = z.string().trim().min(1).max(64);
 const tagList = z.array(nonEmptyString).max(50);
 
-export const DIFFICULTY_LEVELS = ["easy", "medium", "hard"] as const;
-
 export const CONTRIBUTION_TYPES = [
   "documentation",
   "bug",
@@ -33,8 +31,6 @@ export const matchProfileSchema = z.object({
   userLanguages: tagList,
   userFrameworks: tagList,
   userDomains: tagList,
-  userDifficultyLevel: z.enum(DIFFICULTY_LEVELS),
-  userAvailableHoursPerWeek: z.coerce.number().int().min(1).max(40),
   preferredContributionTypes: z.array(z.enum(CONTRIBUTION_TYPES)).max(20),
 });
 
