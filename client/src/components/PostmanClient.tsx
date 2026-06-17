@@ -12,6 +12,7 @@ import { cn, createId } from "@/lib/utils";
 import { parseApiError } from "@/lib/parse-api-error";
 import { validateInput } from "@/lib/form-validation";
 import { proxyRequestSchema } from "@shared/validation/postman";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import {
   formatToggleClass,
   interactiveRowClass,
@@ -96,7 +97,6 @@ const JSON_TOKEN_CLASS = {
   punct: "text-zinc-400",
 } as const;
 
-const STORAGE_KEY = "postman_history";
 const MAX_HISTORY = 50;
 
 const EXAMPLES: Array<{ label: string; method: HttpMethod; url: string }> = [
@@ -141,32 +141,47 @@ function statusLabel(status: number, statusText: string): string {
 }
 
 export function PostmanClient({ token, onBack, playBeep }: Props) {
-  const [method, setMethod] = useState<HttpMethod>("GET");
-  const [url, setUrl] = useState("");
-  const [activeTab, setActiveTab] = useState<RequestTab>("params");
-  const [params, setParams] = useState<KeyValue[]>(buildInitialRows);
-  const [headers, setHeaders] = useState<KeyValue[]>(buildInitialRows);
-  const [body, setBody] = useState("");
-  const [reqBodyFormat, setReqBodyFormat] = useState<"json" | "text">("json");
+  const [method, setMethod] = usePersistentState<HttpMethod>("auraflow_postman_method", "GET");
+  const [url, setUrl] = usePersistentState("auraflow_postman_url", "");
+  const [activeTab, setActiveTab] = usePersistentState<RequestTab>("auraflow_postman_activeTab", "params");
+  const [params, setParams] = usePersistentState<KeyValue[]>(
+    "auraflow_postman_params",
+    buildInitialRows(),
+  );
+  const [headers, setHeaders] = usePersistentState<KeyValue[]>(
+    "auraflow_postman_headers",
+    buildInitialRows(),
+  );
+  const [body, setBody] = usePersistentState("auraflow_postman_body", "");
+  const [reqBodyFormat, setReqBodyFormat] = usePersistentState<"json" | "text">(
+    "auraflow_postman_reqBodyFormat",
+    "json",
+  );
 
   const [response, setResponse] = useState<ProxyResponse | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
-  const [responseView, setResponseView] = useState<"body" | "headers">("body");
-  const [respFormat, setRespFormat] = useState<"pretty" | "raw">("pretty");
-  const [history, setHistory] = useState<HistoryEntry[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    } catch {
-      return [];
-    }
-  });
+  const [responseView, setResponseView] = usePersistentState<"body" | "headers">(
+    "auraflow_postman_responseView",
+    "body",
+  );
+  const [respFormat, setRespFormat] = usePersistentState<"pretty" | "raw">(
+    "auraflow_postman_respFormat",
+    "pretty",
+  );
+  const [history, setHistory] = usePersistentState<HistoryEntry[]>(
+    "auraflow_postman_history",
+    [],
+  );
 
   const [showHistory, setShowHistory] = useState(false);
   const urlRef = useRef<HTMLInputElement>(null);
 
+  // Cap stored history so a long-lived tab can't grow localStorage unbounded.
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
-  }, [history]);
+    if (history.length > MAX_HISTORY) {
+      setHistory(history.slice(0, MAX_HISTORY));
+    }
+  }, [history, setHistory]);
 
   const updateRow = (
     setter: React.Dispatch<React.SetStateAction<KeyValue[]>>,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { env } from "@/env";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import {
   Loader2,
   Plus,
@@ -73,7 +74,7 @@ const COMMANDS: Record<string, { syntax: string; desc: string }> = {
 
 export function ExpenseTracker({ token, onBack, playBeep }: Props) {
   const now = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey());
+  const [selectedMonth, setSelectedMonth] = usePersistentState("auraflow_expense_month", currentMonthKey());
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [summary, setSummary] = useState<Summary>({ grandTotal: 0, totalCount: 0, breakdown: [] });
   const [chartSeries, setChartSeries] = useState<ChartPoint[]>([]);
@@ -81,28 +82,34 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
   const [loading, setLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
-  const [typeFilter, setTypeFilter] = useState<ExpenseType | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [chartGroupBy, setChartGroupBy] = useState<ChartGroupBy>("day");
-  const [cmdValue, setCmdValue] = useState("");
+  const [typeFilter, setTypeFilter] = usePersistentState<ExpenseType | null>("auraflow_expense_typeFilter", null);
+  const [categoryFilter, setCategoryFilter] = usePersistentState("auraflow_expense_categoryFilter", "");
+  const [chartGroupBy, setChartGroupBy] = usePersistentState<ChartGroupBy>("auraflow_expense_chartGroupBy", "day");
+  const [cmdValue, setCmdValue] = usePersistentState("auraflow_expense_cmd", "");
   const [cmdError, setCmdError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [etMobileTab, setEtMobileTab] = useState<"list" | "add" | "chart">("list");
+  const [etMobileTab, setEtMobileTab] = usePersistentState<"list" | "add" | "chart">(
+    "auraflow_expense_mobileTab",
+    "list",
+  );
   const [listPage, setListPage] = useState(1);
   const LIST_PAGE_SIZE = 8;
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = usePersistentState("auraflow_expense_searchInput", "");
   const [searchQuery, setSearchQuery] = useState("");
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [formAmount, setFormAmount] = useState("");
-  const [formDesc, setFormDesc] = useState("");
-  const [formType, setFormType] = useState<ExpenseType>("need");
-  const [formCategory, setFormCategory] = useState<string>(DEFAULT_CATEGORY);
+  const [formAmount, setFormAmount] = usePersistentState("auraflow_expense_formAmount", "");
+  const [formDesc, setFormDesc] = usePersistentState("auraflow_expense_formDesc", "");
+  const [formType, setFormType] = usePersistentState<ExpenseType>("auraflow_expense_formType", "need");
+  const [formCategory, setFormCategory] = usePersistentState<string>("auraflow_expense_formCategory", DEFAULT_CATEGORY);
   const [formDate, setFormDate] = useState(toLocalDateInput(now));
-  const [recurringEnabled, setRecurringEnabled] = useState(false);
+  const [recurringEnabled, setRecurringEnabled] = usePersistentState("auraflow_expense_recurringEnabled", false);
   const [recurringStartDate, setRecurringStartDate] = useState(toLocalDateInput(now));
-  const [recurringDuration, setRecurringDuration] = useState<RecurringDuration>("forever");
+  const [recurringDuration, setRecurringDuration] = usePersistentState<RecurringDuration>(
+    "auraflow_expense_recurringDuration",
+    "forever",
+  );
 
   const cmdInputRef = useRef<HTMLInputElement>(null);
   const formAmountRef = useRef<HTMLInputElement>(null);

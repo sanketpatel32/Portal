@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { env } from "@/env";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import { useAuthHeaders } from "@/hooks/useAuthHeaders";
 import { parseApiError } from "@/lib/parse-api-error";
 import { validateInput } from "@/lib/form-validation";
@@ -60,17 +61,17 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
   const [error, setError] = useState<string | null>(null);
 
   // Filter state
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = usePersistentState("auraflow_bookmark_searchInput", "");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTag, setActiveTag] = useState<string | null>(null);
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [activeTag, setActiveTag] = usePersistentState<string | null>("auraflow_bookmark_activeTag", null);
+  const [favoritesOnly, setFavoritesOnly] = usePersistentState("auraflow_bookmark_favoritesOnly", false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Inline editor state (no modal)
   const [editorOpen, setEditorOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [formUrl, setFormUrl] = useState("");
-  const [formTag, setFormTag] = useState<string>(TAG_OPTIONS[0]);
+  const [formTag, setFormTag] = usePersistentState<string>("auraflow_bookmark_formTag", TAG_OPTIONS[0]);
   const [formFavorite, setFormFavorite] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

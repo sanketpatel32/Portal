@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { env } from "@/env";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import {
   Database,
   FolderOpen,
@@ -178,12 +179,12 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
   const [newColName, setNewColName] = useState("");
   const [showNewCol, setShowNewCol] = useState(false);
 
-  const [jsonValue, setJsonValue] = useState("{\n  \n}");
+  const [jsonValue, setJsonValue] = usePersistentState("auraflow_nosql_jsonDraft", "{\n  \n}");
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  const [filterKey, setFilterKey] = useState("");
-  const [filterValue, setFilterValue] = useState("");
+  const [filterKey, setFilterKey] = usePersistentState("auraflow_nosql_filterKey", "");
+  const [filterValue, setFilterValue] = usePersistentState("auraflow_nosql_filterValue", "");
 
   const jsonInputRef = useRef<HTMLTextAreaElement>(null);
 

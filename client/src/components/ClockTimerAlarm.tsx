@@ -3,6 +3,7 @@ import { Clock } from "lucide-react";
 import { WheelPicker } from "./ui/WheelPicker";
 import { ClockCalendar } from "./ClockCalendar";
 import { TabBar } from "./ui/TabBar";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { ModuleShell } from "./ui/ModuleShell";
 import { playBeep } from "../lib/audio";
@@ -18,22 +19,25 @@ export const ClockTimerAlarm: React.FC<ClockTimerAlarmProps> = ({
   token,
   onBack,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>("clock");
+  const [activeTab, setActiveTab] = usePersistentState<TabType>("auraflow_clock_activeTab", "clock");
   const [currentTime, setCurrentTime] = useState(new Date());
-  
-  // Timer States
+
+  // Timer States. Persist only the *preset* (H/M/S the user dialed in) — the
+  // running countdown, pause state, and alarm-fired flag are runtime-only and
+  // reset on reopen (a timer can't meaningfully survive a page remount).
   const [timerDuration, setTimerDuration] = useState(0); // in seconds
   const [timerRemaining, setTimerRemaining] = useState(0); // in seconds
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [isTimerPaused, setIsTimerPaused] = useState(false);
-  const [timerH, setTimerH] = useState(0);
-  const [timerM, setTimerM] = useState(5); // default 5 mins
-  const [timerS, setTimerS] = useState(0);
+  const [timerH, setTimerH] = usePersistentState("auraflow_clock_timerH", 0);
+  const [timerM, setTimerM] = usePersistentState("auraflow_clock_timerM", 5); // default 5 mins
+  const [timerS, setTimerS] = usePersistentState("auraflow_clock_timerS", 0);
   const [timerAlarm, setTimerAlarm] = useState(false);
 
-  // Alarm States
-  const [alarmH, setAlarmH] = useState(7); // default 07:00
-  const [alarmM, setAlarmM] = useState(0);
+  // Alarm States. Persist the target time; the armed/triggered flags are
+  // session-only (re-arming on reload would fire a stale alarm).
+  const [alarmH, setAlarmH] = usePersistentState("auraflow_clock_alarmH", 7); // default 07:00
+  const [alarmM, setAlarmM] = usePersistentState("auraflow_clock_alarmM", 0);
   const [alarmActive, setAlarmActive] = useState(false);
   const [alarmTriggered, setAlarmTriggered] = useState(false);
   const lastAlarmChecked = useRef<string | null>(null);

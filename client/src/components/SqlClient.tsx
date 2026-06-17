@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { env } from "@/env";
+import { usePersistentState } from "@/hooks/usePersistentState";
 import {
   ChevronRight,
   Database,
@@ -173,7 +174,7 @@ function ResultsTable({ result }: { result: QueryResult }) {
 
 export function SqlClient({ token, onBack, playBeep }: Props) {
   const [view, setView] = useState<ViewState>({ screen: "editor" });
-  const [query, setQuery] = useState("SELECT * FROM ");
+  const [query, setQuery] = usePersistentState("auraflow_sql_query", "SELECT * FROM ");
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bannerError, setBannerError] = useState<string | null>(null);
@@ -184,20 +185,8 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("idle");
   const [connectionDialect, setConnectionDialect] = useState<string | null>(null);
 
-  const [history, setHistory] = useState<QueryHistoryEntry[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("sql_history") || "[]");
-    } catch {
-      return [];
-    }
-  });
-  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("sql_saved") || "[]");
-    } catch {
-      return [];
-    }
-  });
+  const [history, setHistory] = usePersistentState<QueryHistoryEntry[]>("auraflow_sql_history", []);
+  const [savedQueries, setSavedQueries] = usePersistentState<SavedQuery[]>("auraflow_sql_saved", []);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [showSchema, setShowSchema] = useState(false);
@@ -282,13 +271,10 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Trim runaway history (the hook handles persistence; this just caps size).
   useEffect(() => {
-    localStorage.setItem("sql_history", JSON.stringify(history.slice(0, 100)));
-  }, [history]);
-
-  useEffect(() => {
-    localStorage.setItem("sql_saved", JSON.stringify(savedQueries));
-  }, [savedQueries]);
+    if (history.length > 100) setHistory(history.slice(0, 100));
+  }, [history, setHistory]);
 
   const fetchSchema = useCallback(async () => {
     if (!connectionString.trim()) return;
