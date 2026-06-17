@@ -93,6 +93,7 @@ graphify-out/
 .netlify/
 playwright-report/
 test-results/
+.playwright-mcp/
 
 # ─── Desktop wrapper build output ───────────────────────────
 desktop/dist/

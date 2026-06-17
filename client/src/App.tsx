@@ -44,8 +44,11 @@ const WritingAgent = lazy(() =>
 const BookmarkManager = lazy(() =>
   import("./components/BookmarkManager").then((m) => ({ default: m.BookmarkManager })),
 );
+const KanbanBoard = lazy(() =>
+  import("./components/KanbanBoard").then((m) => ({ default: m.KanbanBoard })),
+);
 
-const placeholderSubappIds = new Set<AppOneSubappId>(["subapp8", "subapp9", "subapp10"]);
+const placeholderSubappIds = new Set<AppOneSubappId>(["subapp9", "subapp10"]);
 
 const appOneSubapps: Array<{ id: AppOneSubappId; label: string; detail: string }> = [
   {
@@ -62,7 +65,7 @@ const appOneSubapps: Array<{ id: AppOneSubappId; label: string; detail: string }
   { id: "subapp4", label: "SQL Client", detail: "Read-only SQL client for Postgres, MySQL, and SQLite" },
   { id: "postman", label: "Postman", detail: "Construct and send REST API requests to any endpoint" },
   { id: "writing-agent", label: "Writing Agent", detail: "AI helper to clean grammar, style and tone of text" },
-  { id: "subapp8", label: "Module 8", detail: "Reserved slot" },
+  { id: "subapp8", label: "Kanban Board", detail: "Drag-and-drop task board with backlog inbox" },
   { id: "subapp9", label: "Module 9", detail: "Reserved slot" },
   { id: "subapp10", label: "Module 10", detail: "Reserved slot" },
 ];
@@ -213,6 +216,15 @@ function App() {
               </ErrorBoundary>
             ) : activeSubapp === "writing-agent" ? (
               <WritingAgent
+                token={token!}
+                onBack={() => {
+                  playBeep("click");
+                  setActiveSubapp(null);
+                }}
+                playBeep={playBeep}
+              />
+            ) : activeSubapp === "subapp8" ? (
+              <KanbanBoard
                 token={token!}
                 onBack={() => {
                   playBeep("click");
