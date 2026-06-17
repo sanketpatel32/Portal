@@ -1,0 +1,38 @@
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - heading "Developer Utility Portal" [level=1] [ref=e9]
+      - button "Dashboard" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+        - text: Dashboard
+    - generic [ref=e14]:
+      - button "GitHub Finder Find open-source repos with open issues and contribution signals" [ref=e15] [cursor=pointer]:
+        - generic [ref=e16]: GitHub Finder
+        - generic [ref=e17]: Find open-source repos with open issues and contribution signals
+      - button "Expense Tracker Track spending by category with command-line interactions" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: Expense Tracker
+        - generic [ref=e20]: Track spending by category with command-line interactions
+      - button "NoSQL Client Browse, filter and edit MongoDB collections" [ref=e21] [cursor=pointer]:
+        - generic [ref=e22]: NoSQL Client
+        - generic [ref=e23]: Browse, filter and edit MongoDB collections
+      - button "SQL Client Read-only SQL client for Postgres, MySQL, and SQLite" [ref=e24] [cursor=pointer]:
+        - generic [ref=e25]: SQL Client
+        - generic [ref=e26]: Read-only SQL client for Postgres, MySQL, and SQLite
+      - button "Postman Construct and send REST API requests to any endpoint" [ref=e27] [cursor=pointer]:
+        - generic [ref=e28]: Postman
+        - generic [ref=e29]: Construct and send REST API requests to any endpoint
+      - button "Writing Agent AI helper to clean grammar, style and tone of text" [ref=e30] [cursor=pointer]:
+        - generic [ref=e31]: Writing Agent
+        - generic [ref=e32]: AI helper to clean grammar, style and tone of text
+      - button "Module 8 Reserved slot" [ref=e33] [cursor=pointer]:
+        - generic [ref=e34]: Module 8
+        - generic [ref=e35]: Reserved slot
+      - button "Module 9 Reserved slot" [ref=e36] [cursor=pointer]:
+        - generic [ref=e37]: Module 9
+        - generic [ref=e38]: Reserved slot
+      - button "Module 10 Reserved slot" [ref=e39] [cursor=pointer]:
+        - generic [ref=e40]: Module 10
+        - generic [ref=e41]: Reserved slot
+  - generic:
+    - button "Lock Console":
+      - img

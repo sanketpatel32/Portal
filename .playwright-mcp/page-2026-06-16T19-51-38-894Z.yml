@@ -1,0 +1,138 @@
+- generic [ref=e3]:
+  - generic [ref=e18]:
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - img [ref=e22]
+        - heading "Time & Calendar" [level=1] [ref=e26]
+      - button "Back" [ref=e28] [cursor=pointer]:
+        - img [ref=e29]
+        - text: Back
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - button "CLOCK" [ref=e33] [cursor=pointer]:
+          - generic [ref=e34]: CLOCK
+        - generic [ref=e35]: ·
+        - button "ALARM" [ref=e36] [cursor=pointer]:
+          - generic [ref=e37]: ALARM
+        - generic [ref=e38]: ·
+        - button "TIMER" [ref=e39] [cursor=pointer]:
+          - generic [ref=e40]: TIMER
+        - generic [ref=e41]: ·
+        - button "CALENDAR" [ref=e42] [cursor=pointer]:
+          - generic [ref=e43]: CALENDAR
+      - generic [ref=e65]:
+        - generic [ref=e366]:
+          - generic [ref=e367]:
+            - status: June 2026
+          - grid "June 2026" [ref=e368]:
+            - rowgroup [ref=e369]:
+              - row [ref=e370]:
+                - columnheader [ref=e371]: Su
+                - columnheader [ref=e372]: Mo
+                - columnheader [ref=e373]: Tu
+                - columnheader [ref=e374]: We
+                - columnheader [ref=e375]: Th
+                - columnheader [ref=e376]: Fr
+                - columnheader [ref=e377]: Sa
+            - rowgroup [ref=e378]:
+              - row "Sunday, May 31st, 2026 Monday, June 1st, 2026 Tuesday, June 2nd, 2026 Wednesday, June 3rd, 2026 Thursday, June 4th, 2026 Friday, June 5th, 2026 Saturday, June 6th, 2026" [ref=e379]:
+                - gridcell "Sunday, May 31st, 2026" [ref=e380]:
+                  - button "Sunday, May 31st, 2026" [ref=e381] [cursor=pointer]: "31"
+                - gridcell "Monday, June 1st, 2026" [ref=e382]:
+                  - button "Monday, June 1st, 2026" [ref=e383] [cursor=pointer]: "1"
+                - gridcell "Tuesday, June 2nd, 2026" [ref=e384]:
+                  - button "Tuesday, June 2nd, 2026" [ref=e385] [cursor=pointer]: "2"
+                - gridcell "Wednesday, June 3rd, 2026" [ref=e386]:
+                  - button "Wednesday, June 3rd, 2026" [ref=e387] [cursor=pointer]: "3"
+                - gridcell "Thursday, June 4th, 2026" [ref=e388]:
+                  - button "Thursday, June 4th, 2026" [ref=e389] [cursor=pointer]: "4"
+                - gridcell "Friday, June 5th, 2026" [ref=e390]:
+                  - button "Friday, June 5th, 2026" [ref=e391] [cursor=pointer]: "5"
+                - gridcell "Saturday, June 6th, 2026" [ref=e392]:
+                  - button "Saturday, June 6th, 2026" [ref=e393] [cursor=pointer]: "6"
+              - row "Sunday, June 7th, 2026 Monday, June 8th, 2026 Tuesday, June 9th, 2026 Wednesday, June 10th, 2026 Thursday, June 11th, 2026 Friday, June 12th, 2026 Saturday, June 13th, 2026" [ref=e394]:
+                - gridcell "Sunday, June 7th, 2026" [ref=e395]:
+                  - button "Sunday, June 7th, 2026" [ref=e396] [cursor=pointer]: "7"
+                - gridcell "Monday, June 8th, 2026" [ref=e397]:
+                  - button "Monday, June 8th, 2026" [ref=e398] [cursor=pointer]: "8"
+                - gridcell "Tuesday, June 9th, 2026" [ref=e399]:
+                  - button "Tuesday, June 9th, 2026" [ref=e400] [cursor=pointer]: "9"
+                - gridcell "Wednesday, June 10th, 2026" [ref=e401]:
+                  - button "Wednesday, June 10th, 2026" [ref=e402] [cursor=pointer]: "10"
+                - gridcell "Thursday, June 11th, 2026" [ref=e403]:
+                  - button "Thursday, June 11th, 2026" [ref=e404] [cursor=pointer]: "11"
+                - gridcell "Friday, June 12th, 2026" [ref=e405]:
+                  - button "Friday, June 12th, 2026" [ref=e406] [cursor=pointer]: "12"
+                - gridcell "Saturday, June 13th, 2026" [ref=e407]:
+                  - button "Saturday, June 13th, 2026" [ref=e408] [cursor=pointer]: "13"
+              - row "Sunday, June 14th, 2026 Monday, June 15th, 2026 Tuesday, June 16th, 2026 Today, Wednesday, June 17th, 2026, selected Thursday, June 18th, 2026 Friday, June 19th, 2026 Saturday, June 20th, 2026" [ref=e409]:
+                - gridcell "Sunday, June 14th, 2026" [ref=e410]:
+                  - button "Sunday, June 14th, 2026" [ref=e411] [cursor=pointer]: "14"
+                - gridcell "Monday, June 15th, 2026" [ref=e412]:
+                  - button "Monday, June 15th, 2026" [ref=e413] [cursor=pointer]: "15"
+                - gridcell "Tuesday, June 16th, 2026" [ref=e414]:
+                  - button "Tuesday, June 16th, 2026" [ref=e415] [cursor=pointer]: "16"
+                - gridcell "Today, Wednesday, June 17th, 2026, selected" [selected] [ref=e416]:
+                  - button "Today, Wednesday, June 17th, 2026, selected" [ref=e417] [cursor=pointer]: "17"
+                - gridcell "Thursday, June 18th, 2026" [ref=e418]:
+                  - button "Thursday, June 18th, 2026" [ref=e419] [cursor=pointer]: "18"
+                - gridcell "Friday, June 19th, 2026" [ref=e420]:
+                  - button "Friday, June 19th, 2026" [ref=e421] [cursor=pointer]: "19"
+                - gridcell "Saturday, June 20th, 2026" [ref=e422]:
+                  - button "Saturday, June 20th, 2026" [ref=e423] [cursor=pointer]: "20"
+              - row "Sunday, June 21st, 2026 Monday, June 22nd, 2026 Tuesday, June 23rd, 2026 Wednesday, June 24th, 2026 Thursday, June 25th, 2026 Friday, June 26th, 2026 Saturday, June 27th, 2026" [ref=e424]:
+                - gridcell "Sunday, June 21st, 2026" [ref=e425]:
+                  - button "Sunday, June 21st, 2026" [ref=e426] [cursor=pointer]: "21"
+                - gridcell "Monday, June 22nd, 2026" [ref=e427]:
+                  - button "Monday, June 22nd, 2026" [ref=e428] [cursor=pointer]: "22"
+                - gridcell "Tuesday, June 23rd, 2026" [ref=e429]:
+                  - button "Tuesday, June 23rd, 2026" [ref=e430] [cursor=pointer]: "23"
+                - gridcell "Wednesday, June 24th, 2026" [ref=e431]:
+                  - button "Wednesday, June 24th, 2026" [ref=e432] [cursor=pointer]: "24"
+                - gridcell "Thursday, June 25th, 2026" [ref=e433]:
+                  - button "Thursday, June 25th, 2026" [ref=e434] [cursor=pointer]: "25"
+                - gridcell "Friday, June 26th, 2026" [ref=e435]:
+                  - button "Friday, June 26th, 2026" [ref=e436] [cursor=pointer]: "26"
+                - gridcell "Saturday, June 27th, 2026" [ref=e437]:
+                  - button "Saturday, June 27th, 2026" [ref=e438] [cursor=pointer]: "27"
+              - row "Sunday, June 28th, 2026 Monday, June 29th, 2026 Tuesday, June 30th, 2026 Wednesday, July 1st, 2026 Thursday, July 2nd, 2026 Friday, July 3rd, 2026 Saturday, July 4th, 2026" [ref=e439]:
+                - gridcell "Sunday, June 28th, 2026" [ref=e440]:
+                  - button "Sunday, June 28th, 2026" [ref=e441] [cursor=pointer]: "28"
+                - gridcell "Monday, June 29th, 2026" [ref=e442]:
+                  - button "Monday, June 29th, 2026" [ref=e443] [cursor=pointer]: "29"
+                - gridcell "Tuesday, June 30th, 2026" [ref=e444]:
+                  - button "Tuesday, June 30th, 2026" [ref=e445] [cursor=pointer]: "30"
+                - gridcell "Wednesday, July 1st, 2026" [ref=e446]:
+                  - button "Wednesday, July 1st, 2026" [ref=e447] [cursor=pointer]: "1"
+                - gridcell "Thursday, July 2nd, 2026" [ref=e448]:
+                  - button "Thursday, July 2nd, 2026" [ref=e449] [cursor=pointer]: "2"
+                - gridcell "Friday, July 3rd, 2026" [ref=e450]:
+                  - button "Friday, July 3rd, 2026" [ref=e451] [cursor=pointer]: "3"
+                - gridcell "Saturday, July 4th, 2026" [ref=e452]:
+                  - button "Saturday, July 4th, 2026" [ref=e453] [cursor=pointer]: "4"
+        - generic [ref=e157]:
+          - textbox "Todo title" [ref=e158]:
+            - /placeholder: Add a todo
+            - text: Repro test todo
+          - generic [ref=e159]:
+            - button "Pick date and time" [ref=e160] [cursor=pointer]:
+              - img [ref=e161]
+              - generic [ref=e163]: Today
+              - generic [ref=e164]: + time
+            - button "Add todo" [ref=e165] [cursor=pointer]:
+              - img [ref=e454]
+        - generic [ref=e168]:
+          - generic [ref=e170]:
+            - heading "Tuesday 30 Jun" [level=2] [ref=e171]
+            - generic [ref=e172]: "1"
+          - list [ref=e173]:
+            - listitem [ref=e174]:
+              - generic "Google event" [ref=e175]
+              - paragraph [ref=e177]: Nebulaaa ka bday
+              - generic [ref=e178]: All day
+              - link "Open in Google Calendar" [ref=e179] [cursor=pointer]:
+                - /url: https://www.google.com/calendar/event?eid=X2YwbW0yczNnZGhpaXFzajVkbGttc3AzNWU5bG1pdDFxX2E5MmtxZ3E0YTlpbXFxYmVjaGluNGJxMzcwc2s4ZGk1NjByMnFjMjQ2Y3JpcWQxajZnc2lxZWE2OGgxaXFlYTM2dDFqNGNxMzZzc2pjZHBuXzIwMjYwNjMwIHNhbnBhdGVsMzIzQG0
+                - img [ref=e180]
+  - generic:
+    - button "Lock Console":
+      - img
