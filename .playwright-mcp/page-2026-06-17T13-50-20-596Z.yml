@@ -1,0 +1,8 @@
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - banner [ref=e3]:
+    - button "Switch to light mode" [ref=e5] [cursor=pointer]:
+      - img [ref=e6]
+  - generic [ref=e9]:
+    - img [ref=e13]
+    - generic [ref=e15]: Loading…
