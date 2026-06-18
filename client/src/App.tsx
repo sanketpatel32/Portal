@@ -14,6 +14,7 @@ import { ModuleHeaderBar } from "./components/ui/ModuleHeaderBar";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import { LoadingSpinner } from "./components/ui/LoadingSpinner";
 import { cn } from "./lib/utils";
+import { appIcons } from "./components/ui/AppIcons";
 
 // Heavy subapps are code-split: each becomes its own lazy chunk loaded only when
 // the user opens that tile. This keeps the initial PIN-screen payload small
@@ -47,8 +48,11 @@ const BookmarkManager = lazy(() =>
 const KanbanBoard = lazy(() =>
   import("./components/KanbanBoard").then((m) => ({ default: m.KanbanBoard })),
 );
+const CronScheduler = lazy(() =>
+  import("./components/CronScheduler").then((m) => ({ default: m.CronScheduler })),
+);
 
-const placeholderSubappIds = new Set<AppOneSubappId>(["subapp9", "subapp10"]);
+const placeholderSubappIds = new Set<AppOneSubappId>(["subapp10"]);
 
 const appOneSubapps: Array<{ id: AppOneSubappId; label: string; detail: string }> = [
   {
@@ -66,7 +70,7 @@ const appOneSubapps: Array<{ id: AppOneSubappId; label: string; detail: string }
   { id: "postman", label: "Postman", detail: "Construct and send REST API requests to any endpoint" },
   { id: "writing-agent", label: "Writing Agent", detail: "AI helper to clean grammar, style and tone of text" },
   { id: "subapp8", label: "Kanban Board", detail: "Drag-and-drop task board with backlog inbox" },
-  { id: "subapp9", label: "Module 9", detail: "Reserved slot" },
+  { id: "cron-scheduler", label: "Cron Trigger", detail: "Schedule API triggers and manage mock endpoints" },
   { id: "subapp10", label: "Module 10", detail: "Reserved slot" },
 ];
 
@@ -145,7 +149,7 @@ function App() {
         <div
           className={cn(
             "absolute inset-0 z-30 flex flex-col items-stretch bg-black p-3 font-sans justify-start sm:p-6",
-            (activeSubapp === "nosql-client" || activeSubapp === "subapp4" || activeSubapp === "postman" || activeSubapp === "writing-agent") || activeApp === 3
+            (activeSubapp === "nosql-client" || activeSubapp === "subapp4" || activeSubapp === "postman" || activeSubapp === "writing-agent" || activeSubapp === "cron-scheduler") || activeApp === 3
               ? "overflow-hidden"
               : "overflow-x-hidden overflow-y-auto"
           )}
@@ -232,6 +236,14 @@ function App() {
                 }}
                 playBeep={playBeep}
               />
+            ) : activeSubapp === "cron-scheduler" ? (
+              <CronScheduler
+                token={token!}
+                onBack={() => {
+                  playBeep("click");
+                  setActiveSubapp(null);
+                }}
+              />
             ) : activeSubapp && placeholderSubappIds.has(activeSubapp) ? (
               renderSubappPlaceholder(appOneSubapps.find((s) => s.id === activeSubapp)?.label ?? "Module")
             ) : (
@@ -243,24 +255,37 @@ function App() {
                   backLabel="Dashboard"
                 />
                 <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
-                  {appOneSubapps.map((subapp) => (
-                    <button
-                      key={subapp.id}
-                      type="button"
-                      onClick={() => {
-                        playBeep("click");
-                        setActiveSubapp(subapp.id);
-                      }}
-                      className="group flex aspect-square min-h-24 flex-col items-center justify-center gap-2 border border-white/10 bg-white/[0.03] px-3 text-center transition-all duration-300 hover:-translate-y-1 hover:border-white/35 hover:bg-white/[0.08] hover:text-white focus-visible:border-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/60 sm:min-h-28 active:scale-[0.98]"
-                    >
-                      <span className="font-mono text-xs tracking-[0.18em] text-white/80 transition-transform duration-300 group-hover:scale-105 sm:text-sm font-semibold">
-                        {subapp.label}
-                      </span>
-                      <span className="max-w-56 text-[10px] leading-4 text-zinc-600 font-mono">
-                        {subapp.detail}
-                      </span>
-                    </button>
-                  ))}
+                  {appOneSubapps.map((subapp) => {
+                    const Icon = appIcons[subapp.id];
+                    return (
+                      <button
+                        key={subapp.id}
+                        type="button"
+                        onClick={() => {
+                          playBeep("click");
+                          setActiveSubapp(subapp.id);
+                        }}
+                        className="group relative flex aspect-square min-h-24 flex-col items-center justify-center gap-2 overflow-hidden border border-white/10 bg-white/[0.03] px-3 text-center transition-all duration-300 hover:-translate-y-1 hover:border-white/35 hover:bg-white/[0.08] hover:text-white focus-visible:border-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/60 sm:min-h-28 active:scale-[0.98]"
+                      >
+                        {/* Icon glow on hover */}
+                        <div className="absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+                          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 size-16 rounded-full bg-white/5 blur-xl" />
+                        </div>
+
+                        {/* SVG Icon */}
+                        <div className="relative text-white/60 transition-all duration-300 group-hover:text-white/90 group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.15)]">
+                          {Icon ? <Icon /> : null}
+                        </div>
+
+                        <span className="relative font-mono text-xs tracking-[0.18em] text-white/80 transition-all duration-300 group-hover:scale-105 sm:text-sm font-semibold">
+                          {subapp.label}
+                        </span>
+                        <span className="relative max-w-56 text-[10px] leading-4 text-zinc-600 font-mono transition-colors duration-300 group-hover:text-zinc-500">
+                          {subapp.detail}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )

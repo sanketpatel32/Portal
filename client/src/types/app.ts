@@ -6,7 +6,7 @@ export type AppOneSubappId =
   | "postman"
   | "writing-agent"
   | "subapp8"
-  | "subapp9"
+  | "cron-scheduler"
   | "subapp10";
 
 export type CanvasContextWithLetterSpacing = CanvasRenderingContext2D & {

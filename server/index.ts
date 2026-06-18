@@ -1,5 +1,6 @@
 import { connectDB, TaskModel } from "./db";
 import { env } from "./env";
+import { startScheduler } from "./scheduler";
 import {
   connectionState,
   getResponseHeaders,
@@ -214,7 +215,8 @@ const server = Bun.serve({
     if (
       url.pathname.startsWith("/api/") &&
       url.pathname !== "/api/verify-pin" &&
-      url.pathname !== "/api/google/callback"
+      url.pathname !== "/api/google/callback" &&
+      !url.pathname.startsWith("/api/cron-mocks/")
     ) {
       if (!verifyBearerToken(req)) {
         return jsonResponse(req, { error: "Unauthorized" }, 401);
@@ -311,5 +313,7 @@ setInterval(async () => {
     }));
   }
 }, 2500);
+
+startScheduler(server);
 
 console.log(`Bun Server is running on http://localhost:${env.PORT}`);

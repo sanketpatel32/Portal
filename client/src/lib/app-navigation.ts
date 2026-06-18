@@ -8,7 +8,7 @@ const VALID_SUBAPP_IDS = new Set<AppOneSubappId>([
   "postman",
   "writing-agent",
   "subapp8",
-  "subapp9",
+  "cron-scheduler",
   "subapp10",
 ]);
 

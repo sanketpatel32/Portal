@@ -87,3 +87,32 @@ export type CreateRecurringExpenseInput = z.infer<typeof createRecurringExpenseS
 export type UpdateRecurringExpenseInput = z.infer<typeof updateRecurringExpenseSchema>;
 export type CreateClockTodoInput = z.infer<typeof createClockTodoSchema>;
 export type UpdateClockTodoInput = z.infer<typeof updateClockTodoSchema>;
+
+export const cronJobMethodSchema = z.enum(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"]);
+export const cronJobModeSchema = z.enum(["real", "mock"]);
+export const cronJobScheduleTypeSchema = z.enum(["interval", "cron"]);
+export const cronJobIntervalUnitSchema = z.enum(["seconds", "minutes", "hours"]);
+
+export const createCronJobSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(100).transform(sanitizeString),
+  url: z.string().trim().url("Must be a valid URL").max(500),
+  method: cronJobMethodSchema.default("GET"),
+  headers: z.string().max(2000).default("{}"),
+  body: z.string().max(5000).default(""),
+  mode: cronJobModeSchema.default("real"),
+  mockResponseStatus: z.coerce.number().int().min(100).max(599).default(200),
+  mockResponseBody: z.string().max(5000).default(""),
+  mockResponseHeaders: z.string().max(2000).default("{}"),
+  scheduleType: cronJobScheduleTypeSchema.default("interval"),
+  intervalValue: z.coerce.number().int().min(1).default(5),
+  intervalUnit: cronJobIntervalUnitSchema.default("minutes"),
+  cronExpression: z.string().trim().max(100).default("*/5 * * * *"),
+  mockPath: z.string().trim().max(200).transform(sanitizeString).optional(),
+  active: z.boolean().default(true),
+});
+
+export const updateCronJobSchema = createCronJobSchema.partial();
+
+export type CreateCronJobInput = z.infer<typeof createCronJobSchema>;
+export type UpdateCronJobInput = z.infer<typeof updateCronJobSchema>;
+

@@ -11,6 +11,7 @@ import { handleWriting } from "./writing";
 import { handleBookmarks } from "./bookmark";
 import { handleMetrics } from "./metrics";
 import { handleGithub } from "./github";
+import { handleCron } from "./cron";
 
 export const routeHandlers: RouteHandler[] = [
   handleAuth,
@@ -25,4 +26,6 @@ export const routeHandlers: RouteHandler[] = [
   handleWriting,
   handleBookmarks,
   handleGithub,
+  handleCron,
 ];
+

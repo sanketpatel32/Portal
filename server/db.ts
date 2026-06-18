@@ -12,8 +12,12 @@ export {
   createClockTodoSchema,
   updateClockTodoSchema,
   expenseTypeSchema,
+  createCronJobSchema,
+  updateCronJobSchema,
   type CreateClockTodoInput,
   type UpdateClockTodoInput,
+  type CreateCronJobInput,
+  type UpdateCronJobInput,
 } from "../shared/validation/models";
 
 export let isDbConnected = false;
@@ -75,8 +79,13 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 export function parseExpenseDateInput(value: string): Date {
   const datePart = value.slice(0, 10);
   if (DATE_ONLY.test(datePart)) {
-    const [y, m, d] = datePart.split("-").map(Number);
-    return new Date(y, m - 1, d, 0, 0, 0, 0);
+    const parts = datePart.split("-").map(Number);
+    const y = parts[0];
+    const m = parts[1];
+    const d = parts[2];
+    if (y !== undefined && m !== undefined && d !== undefined) {
+      return new Date(y, m - 1, d, 0, 0, 0, 0);
+    }
   }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
@@ -285,3 +294,93 @@ const bookmarkSchema = new mongoose.Schema<IBookmarkDocument>(
 );
 
 export const BookmarkModel = mongoose.model<IBookmarkDocument>("Bookmark", bookmarkSchema);
+
+// ── Cron Scheduler (Module 9) ───────────────────────────────────
+
+export interface ICronJobDocument extends mongoose.Document {
+  name: string;
+  url: string;
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "HEAD";
+  headers: string;
+  body: string;
+  mode: "real" | "mock";
+  mockResponseStatus: number;
+  mockResponseBody: string;
+  mockResponseHeaders: string;
+  scheduleType: "interval" | "cron";
+  intervalValue: number;
+  intervalUnit: "seconds" | "minutes" | "hours";
+  cronExpression: string;
+  mockPath?: string;
+  active: boolean;
+  nextRun: Date;
+  lastRun?: Date;
+  lastStatus?: "success" | "failed" | "mocked";
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const cronJobSchema = new mongoose.Schema<ICronJobDocument>(
+  {
+    name: { type: String, required: true },
+    url: { type: String, required: true },
+    method: { type: String, enum: ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"], default: "GET" },
+    headers: { type: String, default: "{}" },
+    body: { type: String, default: "" },
+    mode: { type: String, enum: ["real", "mock"], default: "real" },
+    mockResponseStatus: { type: Number, default: 200 },
+    mockResponseBody: { type: String, default: "" },
+    mockResponseHeaders: { type: String, default: "{}" },
+    scheduleType: { type: String, enum: ["interval", "cron"], default: "interval" },
+    intervalValue: { type: Number, default: 5 },
+    intervalUnit: { type: String, enum: ["seconds", "minutes", "hours"], default: "minutes" },
+    cronExpression: { type: String, default: "*/5 * * * *" },
+    mockPath: { type: String, sparse: true, index: true },
+    active: { type: Boolean, default: true, index: true },
+    nextRun: { type: Date, required: true, index: true },
+    lastRun: { type: Date },
+    lastStatus: { type: String, enum: ["success", "failed", "mocked"] },
+  },
+  {
+    timestamps: true,
+    toJSON: standardMongooseToJson,
+  }
+);
+
+export const CronJobModel = mongoose.model<ICronJobDocument>("CronJob", cronJobSchema);
+
+export interface ICronJobLogDocument extends mongoose.Document {
+  jobId: mongoose.Types.ObjectId;
+  timestamp: Date;
+  mode: "real" | "mock";
+  url: string;
+  method: string;
+  durationMs: number;
+  status: number;
+  responseHeaders: string;
+  responseBody: string;
+  error?: string;
+  createdAt: Date;
+}
+
+const cronJobLogSchema = new mongoose.Schema<ICronJobLogDocument>(
+  {
+    jobId: { type: mongoose.Schema.Types.ObjectId, ref: "CronJob", required: true, index: true },
+    timestamp: { type: Date, default: Date.now, index: true },
+    mode: { type: String, enum: ["real", "mock"], required: true },
+    url: { type: String, required: true },
+    method: { type: String, required: true },
+    durationMs: { type: Number, required: true },
+    status: { type: Number, required: true },
+    responseHeaders: { type: String, default: "{}" },
+    responseBody: { type: String, default: "" },
+    error: { type: String },
+  },
+  {
+    timestamps: { createdAt: true, updatedAt: false },
+    toJSON: standardMongooseToJson,
+  }
+);
+
+export const CronJobLogModel = mongoose.model<ICronJobLogDocument>("CronJobLog", cronJobLogSchema);
+
