@@ -65,14 +65,20 @@ mv "$INCOMING" "$ACTIVE"
 mkdir -p "$INCOMING"  # recreate incoming dir for the next CI stage
 log "Release activated at $ACTIVE ($(date -u +%FT%TZ))"
 
+# ── 2b. Fix ownership ────────────────────────────────────────────────────────
+# The CI agent stages files as root (or its own user); the service runs as
+# 'auraflow', which must own everything to read .env (mode 600) and run the
+# bundle. chown the whole tree + the recreated incoming dir.
+chown -R auraflow:auraflow "$ACTIVE" "$INCOMING"
+log "Ownership set to auraflow:auraflow"
+
 # ── 3. Restart the app (single process: API + static) ────────────────────────
-# Sudoers pins the exact systemctl command: `restart auraflow` (no .service).
 log "Restarting auraflow service..."
-sudo systemctl restart auraflow
+systemctl restart auraflow
 
 # Brief settle, then surface status.
 sleep 3
-log "Service status: $(sudo systemctl is-active auraflow || true)"
+log "Service status: $(systemctl is-active auraflow || true)"
 
 log "Memory:"
 free -m | awk '/^Mem:/ {printf "  used=%sMi free=%sMi avail=%sMi\n", $3, $4, $7}'
