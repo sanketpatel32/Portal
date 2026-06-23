@@ -180,17 +180,32 @@ and `systemctl restart auraflow`.
 
 ---
 
-## Updating the app
+## Updating the app (CI/CD — automated)
+
+Deploys are **fully automated** via Woodpecker CI. Pushing to `main` triggers
+`.woodpecker/build-deploy.yml`, which:
+
+1. Builds the server bundle (`bun build` → `server/dist/index.js`, a single
+   self-contained file — no `node_modules` ships at runtime)
+2. Builds the Vite SPA (`client/dist/`)
+3. rsyncs the ~4MB artifact to `/opt/auraflow-release-incoming/`
+4. Runs `deploy/vps-deploy.sh` on the VPS, which atomically swaps it into
+   `/opt/auraflow/`, preserves `server/.env`, and restarts the service
+
+To deploy a change: **just push to `main`**. Monitor at
+`https://ci.sanketpatel.online`.
+
+### Manual rollback
+
+Each deploy keeps a 1-deep backup at `/opt/auraflow-prev/`. To roll back:
 
 ```bash
-sudo -u auraflow -i
-cd /opt/auraflow
-git pull
-bun install                # only if deps changed
-bun run build              # only if the frontend changed
-exit
+sudo -u auraflow bash -c 'rm -rf /opt/auraflow && mv /opt/auraflow-prev /opt/auraflow'
 sudo systemctl restart auraflow
 ```
+
+If `auraflow-prev` is absent (e.g. after a cleanup), the reliable rollback is
+to push the previous commit — CI redeploys it automatically.
 
 ---
 
@@ -204,3 +219,4 @@ sudo systemctl restart auraflow
 | Can't reach `:3001` from outside | VPS firewall / cloud security group blocking the port |
 | WebSocket won't connect behind Nginx | missing the `Upgrade`/`Connection` headers in the proxy block |
 | Google Calendar "redirect_uri_mismatch" | `SERVER_PUBLIC_URL` + the OAuth console's redirect URI must match exactly |
+| CI deploy fails at rsync/activate | check Woodpecker secrets (VPS_HOST, VPS_USER, VPS_SSH_KEY, VPS_KNOWN_HOSTS) and that the `auraflow` user can write `/opt/auraflow-release-incoming` |
