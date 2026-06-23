@@ -4,8 +4,20 @@ import { z } from "zod";
 
 /** Always load server/.env (cwd-independent — fixes root-level dev starts). */
 function loadServerDotEnv() {
-	const envPath = join(import.meta.dir, ".env");
-	if (!existsSync(envPath)) return;
+	// Candidate locations, in priority order:
+	//  1. next to the source file in dev (server/.env)
+	//  2. one level up from a bundled file (server/dist → server/.env)
+	//  3. cwd-relative (artifact deploy run from the release root)
+	// Bun's bundler inlines `import.meta.dir` as the output dir, so a bundle at
+	// server/dist/index.js resolves to server/dist/.env — #2 catches that.
+	const candidates = [
+		join(import.meta.dir, ".env"),
+		join(import.meta.dir, "..", ".env"),
+		join(process.cwd(), "server", ".env"),
+		join(process.cwd(), ".env"),
+	];
+	const envPath = candidates.find((p) => existsSync(p));
+	if (!envPath) return;
 
 	for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
 		const trimmed = line.trim();

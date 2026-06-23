@@ -16,7 +16,11 @@ WorkingDirectory=/opt/auraflow
 # Bun is installed at /usr/local/bin/bun (a real copy, not a /home symlink)
 # because ProtectHome=true below masks /home, which would otherwise cause
 # systemd's 203/EXEC when ExecStart points into the per-user install.
-ExecStart=/usr/local/bin/bun --smol run server/index.ts
+#
+# Runs the bundled server (server/dist/index.js, a single self-contained
+# bun-build output). The bundle inlines all deps, so no node_modules is needed
+# at runtime — this is what makes the artifact-only deploy possible.
+ExecStart=/usr/local/bin/bun --smol run server/dist/index.js
 
 # Restart policy: recover from crashes but don't thrash if it's wedged.
 Restart=always

@@ -6,7 +6,25 @@
 		"useIgnoreFile": false
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": [
+			"**/*.ts",
+			"**/*.tsx",
+			"**/*.js",
+			"**/*.jsx",
+			"**/*.json",
+			"!**/node_modules/**",
+			"!**/dist/**",
+			"!**/desktop/**",
+			"!**/graphify-out/**",
+			"!**/.fallow/**",
+			"!**/.playwright-mcp/**",
+			"!**/playwright-report/**",
+			"!**/bun.lock",
+			"!**/.commandcode/**",
+			"!PID",
+			"!*.log"
+		]
 	},
 	"formatter": {
 		"enabled": true,
