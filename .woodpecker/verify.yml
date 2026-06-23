@@ -1,19 +1,15 @@
-# AuraFlow Portal — verify pipeline (lint · build)
+# AuraFlow Portal — verify pipeline (build gate)
 #
 # Runs on EVERY push and PR. Lightweight: install deps, then build the client
-# (Vite) + server bundle (bun build). The build is the real compile gate — it
-# catches broken imports, missing exports, and type-transpile errors without
-# blocking on pre-existing biome/tsc debt.
+# (Vite) + server bundle (bun build). The build is the real compile gate.
 #
-# Runs on the laptop agent (label: role=laptop), local backend (no Docker).
-# With the local backend, `image: bash` just selects the shell — commands
-# execute directly on the host in a temp clone.
+# VPS-NATIVE: runs on the VPS agent (label: role=vps), local backend.
 
 when:
   - event: [push, pull_request]
 
 labels:
-  role: laptop
+  role: vps
 
 steps:
   install:

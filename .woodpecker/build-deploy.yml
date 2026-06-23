@@ -2,25 +2,27 @@
 #
 # WHY ONE FILE: Woodpecker runs each .woodpecker/*.yml as a SEPARATE workflow
 # with its OWN workspace (temp dir). Artifacts do NOT transfer between
-# workflows. So build + stage-artifact + rsync + activate must live in one
-# workflow so the deploy steps can see the artifact the build steps produced.
+# workflows. So build + stage + activate must live in one workflow.
+#
+# VPS-NATIVE: the agent runs ON the server (label: role=vps), local backend.
+# No SSH, no rsync, no deploy secrets — the agent builds on the box and stages
+# the artifact directly into /opt/auraflow-release-incoming/, then runs the
+# activate script locally. The only "secret" is filesystem + sudoers perms
+# granted to the woodpecker-agent user.
 #
 # Pipeline (all steps share one workspace):
-#   install → build → stage-artifact → setup-ssh → rsync-artifact → activate
+#   install → build → stage → activate
 #
 # verify.yml runs separately (build-only) and needs no artifact.
 #
 # Local backend: `image: bash` = run on host shell, no Docker.
-# Variable escaping: use $${VAR} so Woodpecker's preprocessor passes ${VAR}
-# through to bash, which expands it from the runtime env (secrets injected
-# at step start). Ref: https://woodpecker-ci.org/docs/usage/secrets#escape-secrets
 
 when:
   - event: push
     branch: main
 
 labels:
-  role: laptop
+  role: vps
 
 steps:
   install:
@@ -33,65 +35,26 @@ steps:
     commands:
       - bun run build
 
-  stage-artifact:
-    # Stage a minimal deploy artifact. The Portal server is a single
-    # self-contained bun-build bundle (all 837 modules inlined), so unlike
-    # ScanForge we ship NO node_modules — just the bundle + client/dist +
-    # the activate script. This keeps the release tiny (~5MB + static).
+  stage:
+    # Stage a minimal deploy artifact directly into the incoming dir. The Portal
+    # server is a single self-contained bun-build bundle (837 modules inlined),
+    # so NO node_modules ships — just the bundle + client/dist. Tiny (~4MB).
     image: bash
     commands:
       - |
         set -euo pipefail
-        ARTIFACT="deploy-artifact"
-        mkdir -p "$ARTIFACT/server/dist" "$ARTIFACT/client" "$ARTIFACT/deploy"
-        cp server/dist/index.js "$ARTIFACT/server/dist/index.js"
-        cp -r client/dist "$ARTIFACT/client/dist"
-        cp deploy/vps-deploy.sh "$ARTIFACT/deploy/"
-        echo "=== artifact size ==="
-        du -sh "$ARTIFACT"
-
-  setup-ssh:
-    # Write the deploy key to $HOME/.ssh (NOT ~ — the local backend sets HOME
-    # to a temp dir that differs from passwd's home). Key is RSA -> id_rsa.
-    image: bash
-    environment:
-      VPS_SSH_KEY:
-        from_secret: VPS_SSH_KEY
-      VPS_KNOWN_HOSTS:
-        from_secret: VPS_KNOWN_HOSTS
-    commands:
-      - |
-        set -euo pipefail
-        mkdir -p "$${HOME}/.ssh"
-        printf '%s\n' "$${VPS_SSH_KEY}" > "$${HOME}/.ssh/id_rsa"
-        chmod 600 "$${HOME}/.ssh/id_rsa"
-        printf '%s\n' "$${VPS_KNOWN_HOSTS}" > "$${HOME}/.ssh/known_hosts" 2>/dev/null || true
-        chmod 644 "$${HOME}/.ssh/known_hosts"
-
-  rsync-artifact:
-    image: bash
-    environment:
-      VPS_HOST:
-        from_secret: VPS_HOST
-      VPS_USER:
-        from_secret: VPS_USER
-    commands:
-      - |
-        set -euo pipefail
-        ssh-keyscan -H -t rsa,ed25519 "$${VPS_HOST}" >> "$${HOME}/.ssh/known_hosts" 2>/dev/null || true
-        rsync -az --delete -e "ssh -i $${HOME}/.ssh/id_rsa -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30" \
-          deploy-artifact/ \
-          "$${VPS_USER}@$${VPS_HOST}:/opt/auraflow-release-incoming/"
+        INCOMING="/opt/auraflow-release-incoming"
+        rm -rf "$INCOMING"/*
+        mkdir -p "$INCOMING/server/dist" "$INCOMING/client" "$INCOMING/deploy"
+        cp server/dist/index.js "$INCOMING/server/dist/index.js"
+        cp -r client/dist "$INCOMING/client/dist"
+        cp deploy/vps-deploy.sh "$INCOMING/deploy/"
+        echo "=== staged artifact size ==="
+        du -sh "$INCOMING"
 
   activate:
+    # Run the activate script locally (the agent IS on the VPS). It preserves
+    # server/.env, swaps incoming → active atomically, and restarts the service.
     image: bash
-    environment:
-      VPS_HOST:
-        from_secret: VPS_HOST
-      VPS_USER:
-        from_secret: VPS_USER
     commands:
-      - |
-        set -euo pipefail
-        ssh -i "$${HOME}/.ssh/id_rsa" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 "$${VPS_USER}@$${VPS_HOST}" \
-          "bash /opt/auraflow-release-incoming/deploy/vps-deploy.sh"
+      - bash /opt/auraflow-release-incoming/deploy/vps-deploy.sh

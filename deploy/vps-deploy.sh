@@ -1,20 +1,19 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# AuraFlow Portal — VPS release activation (runs ON the server, AFTER CI rsync).
+# AuraFlow Portal — VPS release activation.
 #
-# This script does NOT build. CI (Woodpecker, laptop agent) builds the server
-# bundle (a single self-contained index.js via `bun build`) + the Vite SPA
-# static files and rsyncs them into /opt/auraflow-release-incoming/. This
-# script atomically swaps that into /opt/auraflow/ and restarts the app.
+# Runs ON the server. With the VPS-native CI agent, this is called directly by
+# the pipeline (no SSH). With the laptop agent it was called over SSH instead.
 #
-# Why split build vs activate? The VPS has 1GB RAM shared with ScanForge.
-# Building on it risks OOM. The laptop agent has headroom; the VPS only ever
-# runs the already-built artifacts.
+# This script does NOT build. CI builds the server bundle (a single
+# self-contained index.js via `bun build`) + the Vite SPA static files and
+# stages them into /opt/auraflow-release-incoming/. This script atomically
+# swaps that into /opt/auraflow/ and restarts the app.
 #
 # Architecture: the Portal is ONE Bun process that serves both the API
 # (from the bundled server/dist/index.js) and the static frontend (from
-# client/dist, served by the server itself). No Caddy for the Portal —
-# Caddy only fronts the single domain portal.sanketpatel.online → :3001.
+# client/dist, served by the server itself). Caddy fronts the single domain
+# portal.sanketpatel.online → :3001.
 #
 # Layout after activation:
 #   /opt/auraflow/
@@ -23,8 +22,9 @@
 #     client/dist/...              (Vite SPA static files — served by the server)
 #     deploy/vps-deploy.sh         (this script)
 #
-# Usage (called by CI over SSH after rsync):
-#   bash /opt/auraflow-release-incoming/deploy/vps-deploy.sh
+# Caller must have: write to /opt + /opt/auraflow-release-incoming, and sudo
+# rights for `systemctl restart auraflow`. The woodpecker-agent user has all
+# three (it's in the auraflow+scanforge groups and has a sudoers entry).
 #
 # Exits non-zero on any failure. /opt/auraflow/server/.env is NEVER overwritten.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -38,9 +38,7 @@ LOG_PREFIX="[auraflow-activate]"
 log() { echo "$LOG_PREFIX $*"; }
 err() { echo "$LOG_PREFIX ERROR: $*" >&2; exit 1; }
 
-[[ "$(id -un)" == "auraflow" ]] || err "Must run as user 'auraflow' (got $(id -un))."
-
-[[ -d "$INCOMING" ]] || err "Incoming release $INCOMING missing — did CI rsync run?"
+[[ -d "$INCOMING" ]] || err "Incoming release $INCOMING missing — did CI stage the artifact?"
 [[ -f "$INCOMING/server/dist/index.js" ]] || err "Server bundle missing in incoming release."
 [[ -f "$INCOMING/client/dist/index.html" ]] || err "Web client/dist/index.html missing in incoming release."
 
@@ -64,23 +62,20 @@ if [[ -d "$ACTIVE" ]]; then
   mv "$ACTIVE" "$BACKUP"
 fi
 mv "$INCOMING" "$ACTIVE"
-mkdir -p "$INCOMING"  # recreate incoming dir for the next CI rsync
+mkdir -p "$INCOMING"  # recreate incoming dir for the next CI stage
 log "Release activated at $ACTIVE ($(date -u +%FT%TZ))"
 
 # ── 3. Restart the app (single process: API + static) ────────────────────────
-# Sudoers (auraflow-deploy) pins the exact systemctl commands: use the unit
-# name WITHOUT flags/suffix (`restart auraflow`, `status auraflow`).
+# Sudoers pins the exact systemctl command: `restart auraflow` (no .service).
 log "Restarting auraflow service..."
 sudo systemctl restart auraflow
 
 # Brief settle, then surface status.
 sleep 3
-log "Service status:"
-sudo systemctl is-active auraflow || true
+log "Service status: $(sudo systemctl is-active auraflow || true)"
 
 log "Memory:"
 free -m | awk '/^Mem:/ {printf "  used=%sMi free=%sMi avail=%sMi\n", $3, $4, $7}'
 
-log "Activate complete. Tail logs with:"
-log "  sudo journalctl -u auraflow -f"
-log "Rollback (if needed): sudo -u auraflow bash -c 'rm -rf /opt/auraflow && mv /opt/auraflow-prev /opt/auraflow' && sudo systemctl restart auraflow"
+log "Activate complete. Tail logs with: sudo journalctl -u auraflow -f"
+log "Rollback (if needed): sudo bash -c 'rm -rf /opt/auraflow && mv /opt/auraflow-prev /opt/auraflow' && sudo systemctl restart auraflow"
