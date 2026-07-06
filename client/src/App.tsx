@@ -1,19 +1,19 @@
-import { lazy, Suspense, useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
-import type { AppOneSubappId } from "./types/app";
-import { playBeep } from "./lib/audio";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { PinLockScreen } from "./components/PinLockScreen";
+import { appIcons } from "./components/ui/AppIcons";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
+import { LoadingSpinner } from "./components/ui/LoadingSpinner";
+import { ModuleHeaderBar } from "./components/ui/ModuleHeaderBar";
 import {
 	clearNavigationPath,
 	parseNavigationFromPath,
 	readInitialNavigation,
 	updateNavigationPath,
 } from "./lib/app-navigation";
-import { PinLockScreen } from "./components/PinLockScreen";
-import { ModuleHeaderBar } from "./components/ui/ModuleHeaderBar";
-import { ErrorBoundary } from "./components/ui/ErrorBoundary";
-import { LoadingSpinner } from "./components/ui/LoadingSpinner";
+import { playBeep } from "./lib/audio";
 import { cn } from "./lib/utils";
-import { appIcons } from "./components/ui/AppIcons";
+import type { AppOneSubappId } from "./types/app";
 
 // Heavy subapps are code-split: each becomes its own lazy chunk loaded only when
 // the user opens that tile. This keeps the initial PIN-screen payload small
@@ -62,6 +62,11 @@ const KanbanBoard = lazy(() =>
 const CronScheduler = lazy(() =>
 	import("./components/CronScheduler").then((m) => ({
 		default: m.CronScheduler,
+	})),
+);
+const PickerWheel = lazy(() =>
+	import("./components/PickerWheel").then((m) => ({
+		default: m.PickerWheel,
 	})),
 );
 
@@ -119,6 +124,11 @@ const appOneSubapps: Array<{
 		id: "bookmark-manager",
 		label: "Bookmark",
 		detail: "Save and tag website links for quick recall",
+	},
+	{
+		id: "picker-wheel",
+		label: "Picker Wheel",
+		detail: "Spin a wheel to pick a random option",
 	},
 ];
 
@@ -343,6 +353,8 @@ function App() {
 								onBack={goHome}
 								playBeep={playBeep}
 							/>
+						) : activeSubapp === "picker-wheel" ? (
+							<PickerWheel onBack={goHome} />
 						) : (
 							// Unknown / stale subapp id — bail out to home.
 							<div className="mx-auto flex w-full max-w-3xl flex-col items-center animate-scale-up px-2">

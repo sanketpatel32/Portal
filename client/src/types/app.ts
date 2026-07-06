@@ -8,4 +8,5 @@ export type AppOneSubappId =
 	| "subapp8"
 	| "cron-scheduler"
 	| "clock-calendar"
-	| "bookmark-manager";
+	| "bookmark-manager"
+	| "picker-wheel";

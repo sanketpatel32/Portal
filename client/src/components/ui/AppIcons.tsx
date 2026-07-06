@@ -1,4 +1,4 @@
-import { type SVGProps } from "react";
+import type { SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
@@ -915,6 +915,47 @@ export const BookmarkManagerIcon = (props: IconProps) => (
 	</Frame>
 );
 
+export const PickerWheelIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Pointer at top */}
+		<path d="M24 4L21 10H27L24 4Z" fill="currentColor" opacity="0.85" />
+		{/* Outer wheel ring */}
+		<circle
+			cx="24"
+			cy="25"
+			r="16"
+			stroke="currentColor"
+			strokeWidth="1"
+			opacity="0.2"
+		/>
+		{/* Pie segments */}
+		<path
+			d="M24 25L24 9A16 16 0 0 1 38 19Z"
+			fill="currentColor"
+			opacity="0.28"
+		/>
+		<path
+			d="M24 25L38 19A16 16 0 0 1 32 38Z"
+			fill="currentColor"
+			opacity="0.14"
+		/>
+		<path
+			d="M24 25L32 38A16 16 0 0 1 12 36Z"
+			fill="currentColor"
+			opacity="0.2"
+		/>
+		{/* Segment divider lines */}
+		<path
+			d="M24 9V25M38 19L24 25M32 38L24 25M12 36L24 25"
+			stroke="currentColor"
+			strokeWidth="0.8"
+			opacity="0.4"
+		/>
+		{/* Hub */}
+		<circle cx="24" cy="25" r="2.5" fill="currentColor" opacity="0.6" />
+	</Frame>
+);
+
 /** Maps app IDs to their icon components */
 export const appIcons: Record<string, React.ComponentType<IconProps>> = {
 	"github-issue-analyser": GithubFinderIcon,
@@ -927,4 +968,5 @@ export const appIcons: Record<string, React.ComponentType<IconProps>> = {
 	"cron-scheduler": CronTriggerIcon,
 	"clock-calendar": ClockCalendarIcon,
 	"bookmark-manager": BookmarkManagerIcon,
+	"picker-wheel": PickerWheelIcon,
 };
