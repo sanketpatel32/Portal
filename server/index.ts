@@ -1,6 +1,6 @@
 import { connectDB, TaskModel } from "./db";
 import { env } from "./env";
-import { startScheduler } from "./scheduler";
+import { startScheduler, stopScheduler } from "./scheduler";
 import {
   connectionState,
   getResponseHeaders,
@@ -224,9 +224,21 @@ const server = Bun.serve({
     }
 
     const ctx = { req, url, clientIp, server };
-    for (const handler of routeHandlers) {
-      const response = await handler(ctx);
-      if (response) return response;
+    try {
+      for (const handler of routeHandlers) {
+        const response = await handler(ctx);
+        if (response) return response;
+      }
+    } catch (err) {
+      // A throwing route handler would otherwise reject the fetch() promise
+      // and Bun would return a bare 500. Log the failure with context and
+      // return a structured JSON 500 so the client gets a predictable shape.
+      console.error("[fetch] uncaught route error:", {
+        path: url.pathname,
+        method: req.method,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return jsonResponse(req, { error: "Internal server error" }, 500);
     }
 
     // No API route matched. If a client build exists, serve it (static asset
@@ -317,3 +329,36 @@ setInterval(async () => {
 startScheduler(server);
 
 console.log(`Bun Server is running on http://localhost:${env.PORT}`);
+
+// ─── Process-level error containment ──────────────────────────────────────────
+// Without these, a rejected promise from a `fetch()` handler (e.g. a DB call
+// that throws after the response started) or a sync exception in a timer would
+// tear down the whole process. Logging instead keeps the server up and leaves
+// crash/restart decisions to systemd's Restart=always policy on the unit.
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+});
+
+// ─── Graceful shutdown ────────────────────────────────────────────────────────
+// systemd sends SIGTERM on every deploy + restart. Stop accepting new
+// connections, then give in-flight requests a short grace window before the
+// process exits. This avoids dropping requests mid-flight on deploys.
+let shuttingDown = false;
+function shutdown(signal: string) {
+  if (shuttingDown) return; // guard against a duplicate signal
+  shuttingDown = true;
+  console.log(`[shutdown] Received ${signal}. Draining connections...`);
+
+  server.stop(true, 2000); // stop accepting new conns, wait ≤2s for active ones
+  stopScheduler();
+
+  // Exit promptly once connections drain; the timeout above is the backstop.
+  setTimeout(() => process.exit(0), 2500).unref();
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

@@ -316,17 +316,25 @@ function App() {
 						}
 					>
 						{activeSubapp === "github-issue-analyser" ? (
-							<GithubAnalyser onBack={goHome} />
+							<ErrorBoundary label="GitHub Analyser" onBack={goHome}>
+								<GithubAnalyser onBack={goHome} />
+							</ErrorBoundary>
 						) : activeSubapp === "expense-tracker" ? (
-							<ExpenseTracker
-								token={token!}
-								onBack={goHome}
-								playBeep={playBeep}
-							/>
+							<ErrorBoundary label="Expense Tracker" onBack={goHome}>
+								<ExpenseTracker
+									token={token!}
+									onBack={goHome}
+									playBeep={playBeep}
+								/>
+							</ErrorBoundary>
 						) : activeSubapp === "nosql-client" ? (
-							<NoSqlClient token={token!} onBack={goHome} playBeep={playBeep} />
+							<ErrorBoundary label="NoSQL Client" onBack={goHome}>
+								<NoSqlClient token={token!} onBack={goHome} playBeep={playBeep} />
+							</ErrorBoundary>
 						) : activeSubapp === "subapp4" ? (
-							<SqlClient token={token!} onBack={goHome} playBeep={playBeep} />
+							<ErrorBoundary label="SQL Client" onBack={goHome}>
+								<SqlClient token={token!} onBack={goHome} playBeep={playBeep} />
+							</ErrorBoundary>
 						) : activeSubapp === "postman" ? (
 							<ErrorBoundary label="Postman" onBack={goHome}>
 								<PostmanClient
@@ -336,25 +344,37 @@ function App() {
 								/>
 							</ErrorBoundary>
 						) : activeSubapp === "writing-agent" ? (
-							<WritingAgent
-								token={token!}
-								onBack={goHome}
-								playBeep={playBeep}
-							/>
+							<ErrorBoundary label="Writing Agent" onBack={goHome}>
+								<WritingAgent
+									token={token!}
+									onBack={goHome}
+									playBeep={playBeep}
+								/>
+							</ErrorBoundary>
 						) : activeSubapp === "subapp8" ? (
-							<KanbanBoard token={token!} onBack={goHome} playBeep={playBeep} />
+							<ErrorBoundary label="Kanban" onBack={goHome}>
+								<KanbanBoard token={token!} onBack={goHome} playBeep={playBeep} />
+							</ErrorBoundary>
 						) : activeSubapp === "cron-scheduler" ? (
-							<CronScheduler token={token!} onBack={goHome} />
+							<ErrorBoundary label="Cron Scheduler" onBack={goHome}>
+								<CronScheduler token={token!} onBack={goHome} />
+							</ErrorBoundary>
 						) : activeSubapp === "clock-calendar" ? (
-							<ClockTimerAlarm token={token} onBack={goHome} />
+							<ErrorBoundary label="Clock & Calendar" onBack={goHome}>
+								<ClockTimerAlarm token={token} onBack={goHome} />
+							</ErrorBoundary>
 						) : activeSubapp === "bookmark-manager" ? (
-							<BookmarkManager
-								token={token!}
-								onBack={goHome}
-								playBeep={playBeep}
-							/>
+							<ErrorBoundary label="Bookmarks" onBack={goHome}>
+								<BookmarkManager
+									token={token!}
+									onBack={goHome}
+									playBeep={playBeep}
+								/>
+							</ErrorBoundary>
 						) : activeSubapp === "picker-wheel" ? (
-							<PickerWheel onBack={goHome} />
+							<ErrorBoundary label="Picker Wheel" onBack={goHome}>
+								<PickerWheel onBack={goHome} />
+							</ErrorBoundary>
 						) : (
 							// Unknown / stale subapp id — bail out to home.
 							<div className="mx-auto flex w-full max-w-3xl flex-col items-center animate-scale-up px-2">
