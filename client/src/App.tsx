@@ -69,6 +69,11 @@ const PickerWheel = lazy(() =>
 		default: m.PickerWheel,
 	})),
 );
+const JsonToolkit = lazy(() =>
+	import("./components/JsonToolkit").then((m) => ({
+		default: m.JsonToolkit,
+	})),
+);
 
 const appOneSubapps: Array<{
 	id: AppOneSubappId;
@@ -129,6 +134,11 @@ const appOneSubapps: Array<{
 		id: "picker-wheel",
 		label: "Picker Wheel",
 		detail: "Spin a wheel to pick a random option",
+	},
+	{
+		id: "json-toolkit",
+		label: "JSON Toolkit",
+		detail: "Format JSON, encode Base64/URL, and hash text",
 	},
 ];
 
@@ -374,6 +384,10 @@ function App() {
 						) : activeSubapp === "picker-wheel" ? (
 							<ErrorBoundary label="Picker Wheel" onBack={goHome}>
 								<PickerWheel onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "json-toolkit" ? (
+							<ErrorBoundary label="JSON Toolkit" onBack={goHome}>
+								<JsonToolkit onBack={goHome} />
 							</ErrorBoundary>
 						) : (
 							// Unknown / stale subapp id — bail out to home.

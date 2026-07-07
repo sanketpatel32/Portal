@@ -12,6 +12,7 @@ const VALID_SUBAPP_IDS = new Set<AppOneSubappId>([
 	"clock-calendar",
 	"bookmark-manager",
 	"picker-wheel",
+	"json-toolkit",
 ]);
 
 // Legacy app numbers (pre-portal-grid) → their new subapp tile. Time & Cal used

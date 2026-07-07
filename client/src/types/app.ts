@@ -9,4 +9,5 @@ export type AppOneSubappId =
 	| "cron-scheduler"
 	| "clock-calendar"
 	| "bookmark-manager"
-	| "picker-wheel";
+	| "picker-wheel"
+	| "json-toolkit";
