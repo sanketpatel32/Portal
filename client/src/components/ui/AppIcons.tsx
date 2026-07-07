@@ -956,6 +956,33 @@ export const PickerWheelIcon = (props: IconProps) => (
 	</Frame>
 );
 
+export const JsonToolkitIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Left brace */}
+		<path
+			d="M19 9C16 9 15 10.5 15 13V17C15 18.5 14 19.5 12 19.5C14 19.5 15 20.5 15 22V26C15 28.5 16 30 19 30"
+			stroke="currentColor"
+			strokeWidth="1.6"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			opacity="0.7"
+		/>
+		{/* Right brace */}
+		<path
+			d="M29 9C32 9 33 10.5 33 13V17C33 18.5 34 19.5 36 19.5C34 19.5 33 20.5 33 22V26C33 28.5 32 30 29 30"
+			stroke="currentColor"
+			strokeWidth="1.6"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			opacity="0.7"
+		/>
+		{/* Center dots (JSON values) */}
+		<circle cx="21" cy="19.5" r="1.4" fill="currentColor" opacity="0.9" />
+		<circle cx="24" cy="19.5" r="1.4" fill="currentColor" opacity="0.55" />
+		<circle cx="27" cy="19.5" r="1.4" fill="currentColor" opacity="0.3" />
+	</Frame>
+);
+
 /** Maps app IDs to their icon components */
 export const appIcons: Record<string, React.ComponentType<IconProps>> = {
 	"github-issue-analyser": GithubFinderIcon,
@@ -969,4 +996,5 @@ export const appIcons: Record<string, React.ComponentType<IconProps>> = {
 	"clock-calendar": ClockCalendarIcon,
 	"bookmark-manager": BookmarkManagerIcon,
 	"picker-wheel": PickerWheelIcon,
+	"json-toolkit": JsonToolkitIcon,
 };
