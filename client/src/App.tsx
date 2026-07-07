@@ -74,6 +74,26 @@ const JsonToolkit = lazy(() =>
 		default: m.JsonToolkit,
 	})),
 );
+const PomodoroTimer = lazy(() =>
+	import("./components/PomodoroTimer").then((m) => ({
+		default: m.PomodoroTimer,
+	})),
+);
+const RegexTester = lazy(() =>
+	import("./components/RegexTester").then((m) => ({
+		default: m.RegexTester,
+	})),
+);
+const PasswordGenerator = lazy(() =>
+	import("./components/PasswordGenerator").then((m) => ({
+		default: m.PasswordGenerator,
+	})),
+);
+const ColorPalette = lazy(() =>
+	import("./components/ColorPalette").then((m) => ({
+		default: m.ColorPalette,
+	})),
+);
 
 const appOneSubapps: Array<{
 	id: AppOneSubappId;
@@ -139,6 +159,26 @@ const appOneSubapps: Array<{
 		id: "json-toolkit",
 		label: "JSON Toolkit",
 		detail: "Format JSON, encode Base64/URL, and hash text",
+	},
+	{
+		id: "pomodoro-timer",
+		label: "Pomodoro",
+		detail: "Focus timer with automatic break cycling",
+	},
+	{
+		id: "regex-tester",
+		label: "Regex Tester",
+		detail: "Test patterns with live match highlighting",
+	},
+	{
+		id: "password-generator",
+		label: "Password Gen",
+		detail: "Secure passwords with strength estimation",
+	},
+	{
+		id: "color-palette",
+		label: "Color Palette",
+		detail: "Harmonies, format conversions, WCAG contrast",
 	},
 ];
 
@@ -388,6 +428,22 @@ function App() {
 						) : activeSubapp === "json-toolkit" ? (
 							<ErrorBoundary label="JSON Toolkit" onBack={goHome}>
 								<JsonToolkit onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "pomodoro-timer" ? (
+							<ErrorBoundary label="Pomodoro Timer" onBack={goHome}>
+								<PomodoroTimer onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "regex-tester" ? (
+							<ErrorBoundary label="Regex Tester" onBack={goHome}>
+								<RegexTester onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "password-generator" ? (
+							<ErrorBoundary label="Password Generator" onBack={goHome}>
+								<PasswordGenerator onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "color-palette" ? (
+							<ErrorBoundary label="Color Palette" onBack={goHome}>
+								<ColorPalette onBack={goHome} />
 							</ErrorBoundary>
 						) : (
 							// Unknown / stale subapp id — bail out to home.

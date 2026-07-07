@@ -10,4 +10,8 @@ export type AppOneSubappId =
 	| "clock-calendar"
 	| "bookmark-manager"
 	| "picker-wheel"
-	| "json-toolkit";
+	| "json-toolkit"
+	| "pomodoro-timer"
+	| "regex-tester"
+	| "password-generator"
+	| "color-palette";
