@@ -983,6 +983,85 @@ export const JsonToolkitIcon = (props: IconProps) => (
 	</Frame>
 );
 
+export const PomodoroTimerIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Outer clock ring */}
+		<circle cx="24" cy="24" r="14" stroke="currentColor" strokeWidth="1.6" opacity="0.25" />
+		{/* Progress arc (top-right quadrant, emerald feel via opacity) */}
+		<path
+			d="M24 10 A14 14 0 0 1 38 24"
+			stroke="currentColor"
+			strokeWidth="2.4"
+			strokeLinecap="round"
+			opacity="0.8"
+		/>
+		{/* Clock hands */}
+		<path d="M24 24V16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" opacity="0.6" />
+		<path d="M24 24L30 28" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" opacity="0.6" />
+		{/* Center dot */}
+		<circle cx="24" cy="24" r="1.6" fill="currentColor" opacity="0.7" />
+	</Frame>
+);
+
+export const RegexTesterIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Pattern line with .* wildcard dots */}
+		<text
+			x="24"
+			y="22"
+			textAnchor="middle"
+			fontFamily="monospace"
+			fontSize="11"
+			fontWeight="bold"
+			fill="currentColor"
+			opacity="0.8"
+		>
+			/.*/
+		</text>
+		{/* Underline match highlight */}
+		<path d="M13 28H35" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.3" />
+		<path d="M16 28H28" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" opacity="0.7" />
+	</Frame>
+);
+
+export const PasswordGeneratorIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Shield outline */}
+		<path
+			d="M24 8L12 13V22C12 30 17 35 24 38C31 35 36 30 36 22V13L24 8Z"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinejoin="round"
+			opacity="0.4"
+		/>
+		{/* Key hole / asterisk pattern inside */}
+		<path
+			d="M24 17V27M19 19.5L29 24.5M29 19.5L19 24.5"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinecap="round"
+			opacity="0.8"
+		/>
+		{/* Center dot */}
+		<circle cx="24" cy="22" r="2" fill="currentColor" opacity="0.9" />
+	</Frame>
+);
+
+export const ColorPaletteIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Three overlapping color swatches */}
+		<rect x="9" y="14" width="16" height="16" rx="2" fill="currentColor" opacity="0.5" />
+		<rect x="16" y="18" width="16" height="16" rx="2" fill="currentColor" opacity="0.3" />
+		<rect x="13" y="11" width="16" height="16" rx="2" fill="currentColor" opacity="0.7" />
+		{/* Droplet accent */}
+		<path
+			d="M29 11C29 11 33 15 33 18C33 20 31 21.5 29 21.5C27 21.5 25 20 25 18C25 15 29 11 29 11Z"
+			fill="currentColor"
+			opacity="0.3"
+		/>
+	</Frame>
+);
+
 /** Maps app IDs to their icon components */
 export const appIcons: Record<string, React.ComponentType<IconProps>> = {
 	"github-issue-analyser": GithubFinderIcon,
@@ -997,4 +1076,8 @@ export const appIcons: Record<string, React.ComponentType<IconProps>> = {
 	"bookmark-manager": BookmarkManagerIcon,
 	"picker-wheel": PickerWheelIcon,
 	"json-toolkit": JsonToolkitIcon,
+	"pomodoro-timer": PomodoroTimerIcon,
+	"regex-tester": RegexTesterIcon,
+	"password-generator": PasswordGeneratorIcon,
+	"color-palette": ColorPaletteIcon,
 };
