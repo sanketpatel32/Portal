@@ -1,23 +1,53 @@
-# AuraFlow: Real-Time Bun & Vite React Workspace
+# AuraFlow — Developer Utility Portal
 
-AuraFlow is a premium, full-stack, real-time metrics and project management dashboard. It uses a high-performance **Bun HTTP & WebSocket Server** backend and a modern, glassmorphic **Vite React & TypeScript** frontend.
+A self-hosted, cyberpunk-themed dashboard that bundles **16 developer tools** behind a single PIN-locked grid. One Bun server serves a Vite/React SPA and a WebSocket-realtime API; everything you reach for day-to-day — API testing, SQL/NoSQL clients, JSON tooling, a Kanban board, cron triggers, a password generator — lives one click away.
+
+Live at **[portal.sanketpatel.online](https://portal.sanketpatel.online)**.
 
 ---
 
-## ⚡ Architecture Overview
+## ✨ What's inside
+
+The portal is a grid of tiles. Each tile opens a full-screen tool. Some run entirely in the browser (no server round-trip); others talk to the backend over a bearer-token API.
+
+| Tile | What it does | Type |
+| :--- | :--- | :--- |
+| **GitHub Finder** | Find open-source repos with open issues and contribution signals | Server |
+| **Expense Tracker** | Track spending by category with a CLI-style interface | Server |
+| **NoSQL Client** | Browse, filter and edit MongoDB collections | Server |
+| **SQL Client** | Read-only SQL client for Postgres, MySQL and SQLite | Server |
+| **Postman** | Construct and send REST API requests to any endpoint | Server |
+| **Writing Agent** | Clean up the grammar, style and tone of text | Server |
+| **Kanban Board** | Drag-and-drop task board with a copyable To Do list | Server + WS |
+| **Cron Trigger** | Schedule API triggers and manage mock endpoints | Server |
+| **Time & Cal** | Clock, timer, alarm and calendar in one view | Server |
+| **Bookmark Manager** | Save and tag website links for quick recall | Server |
+| **Picker Wheel** | Spin a weighted wheel to pick a random option | Client-only |
+| **JSON Toolkit** | Format/minify JSON, encode Base64/URL, SHA-256/1/512 hashing | Client-only |
+| **Pomodoro** | Focus timer with automatic break cycling and a progress ring | Client-only |
+| **Regex Tester** | Test patterns with live match highlighting and capture groups | Client-only |
+| **Password Gen** | Cryptographically secure passwords with entropy strength meter | Client-only |
+| **Color Palette** | Color harmonies, HEX/RGB/HSL conversions, WCAG contrast checker | Client-only |
+
+**Client-only** tiles persist their state to `localStorage` and work offline.
+
+---
+
+## ⚡ Architecture
 
 ```mermaid
 graph TD
-    Client[Vite React Frontend] <-->|WebSocket: Real-time Metrics & Task Sync| Server[Bun API Server]
-    Client -->|HTTP REST: CRUD Commands| Server
+    Browser[Vite React SPA<br/>16 tiles, PIN-gated] <-->|REST + WebSocket| Server[Bun HTTP/WS Server]
+    Server --> MongoDB[(MongoDB)]
+    Server -->|on-demand| Postgres[(Postgres / MySQL / SQLite)]
+    Server -.->|cron scheduler| Scheduler[Recurring + Cron Jobs]
 ```
 
-### Key Highlights
-*   **Orchestrated Startup**: Run both the server and client dev servers concurrently with a single command (`bun run dev`).
-*   **Zero-Dependency Realtime Sync**: Leverages Bun's native WebSocket pub/sub system to propagate Kanban task updates and server performance stats across all open browser tabs instantly.
-*   **Cyberpunk Design Aesthetic**: Styled using CSS variables, custom smooth transitions, glassmorphic panels, animated status indicators, and custom scrollbars.
-*   **Diagnostics Suite**: Displays live JS Heap Memory, RSS allocations, WebSocket connections, and server uptime.
-*   **Interactive Session Chat**: In-memory global chat logs that propagate in real time to all connected clients.
+- **One process does both jobs.** In production the Bun server serves the built SPA (static files from `client/dist`) *and* the API + WebSocket from a single port — no separate frontend server needed.
+- **Realtime sync.** Bun's native WebSocket pub/sub propagates Kanban changes, server metrics and session chat across all open tabs instantly.
+- **Code-split tiles.** Every tile is a lazy-loaded React chunk, so the initial PIN-screen payload stays small.
+- **Resilient.** A top-level `try/catch` around the route loop returns clean JSON 500s, global `unhandledRejection`/`uncaughtException` handlers keep the process up, and SIGTERM triggers a graceful drain on deploys.
+- **Cyberpunk aesthetic.** Dark glassmorphic panels, monospace type, animated transitions, custom scrollbars.
 
 ---
 
@@ -25,126 +55,162 @@ graph TD
 
 ```text
 MyApp/
-├── package.json           # Root workspace scripts
-├── dev.ts                 # Dev server orchestrator script
-├── README.md              # Documentation
+├── package.json              # Root workspace: dev, build, lint, desktop scripts
+├── dev.ts                    # Concurrent dev-server orchestrator
 ├── server/
-│   ├── index.ts           # Bun HTTP & WebSocket Server logic
-│   ├── package.json       # Backend configurations & devDependencies
-│   └── tsconfig.json      # TypeScript configurations for server
-└── client/
-    ├── index.html         # HTML entry point (SEO optimized)
-    ├── package.json       # React & Vite client dependencies
-    ├── vite.config.ts     # Vite configuration
-    └── src/
-        ├── main.tsx       # React mounting entry
-        ├── App.tsx        # Dashboard interface (Kanban, metrics & chat)
-        └── index.css      # Core premium design system stylesheet
+│   ├── index.ts              # Bun.serve: routing, WebSocket, static SPA
+│   ├── env.ts                # .env resolution (dev, bundle, desktop layouts)
+│   ├── db.ts                 # MongoDB connection
+│   ├── scheduler.ts          # Recurring + cron job runner
+│   ├── rate-limit.ts         # Per-IP request throttling
+│   ├── http-context.ts       # Shared auth + CORS + response helpers
+│   └── routes/               # API handlers: tasks, sql, nosql, github, etc.
+├── client/
+│   ├── index.html            # HTML entry
+│   ├── vite.config.ts        # Vite + React + Tailwind
+│   └── src/
+│       ├── App.tsx           # Portal grid + tile routing + PIN gate
+│       ├── env.ts            # Runtime API/WS URL resolution
+│       ├── components/        # One file per tile (16 components)
+│       ├── components/ui/     # Shared primitives: AppButton, AppInput, icons…
+│       ├── hooks/             # usePersistentState, useAuthHeaders…
+│       └── lib/               # utils, audio, form-validation, ui-classes
+├── shared/validation/         # Zod schemas shared by client + server
+├── deploy/                    # systemd unit + VPS deploy script
+└── desktop/                   # Electron wrapper (see below)
 ```
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Prerequisite
-Ensure that [Bun](https://bun.sh) is installed on your system.
+### Prerequisites
+- [Bun](https://bun.sh) installed
+- A `.env` in `server/` (copy from `server/.env.example`): `MONGODB_URI`, `PIN`, and any tool-specific vars
 
-### 2. Run in Development Mode
-To start both the Bun backend server and the Vite React client concurrently, run the following command in the project root:
-
+### Development
 ```bash
+bun install
 bun run dev
 ```
+Spins up both processes concurrently:
+- **Bun API + WebSocket server** → `http://localhost:3001`
+- **Vite dev server** (HMR) → `http://localhost:5173`
 
-The orchestrator will spin up:
-*   **Bun Server**: [http://localhost:3001](http://localhost:3001)
-*   **Vite Client**: [http://localhost:5173](http://localhost:5173) (or the next available port, e.g., `5174`)
+Press `Ctrl+C` to stop both.
 
-### 3. Stop Dev Servers
-Simply press `Ctrl+C` in your terminal. The orchestrator will catch the interrupt and cleanly terminate both backend and frontend processes.
+### Production build
+```bash
+bun run build        # vite build (client/dist) + bun build (server bundle)
+bun run start:bundle # runs the bundled server/dist/index.js (--smol heap)
+```
+The single Bun process then serves the API, WebSocket, *and* the static SPA on one port.
+
+### Other scripts
+```bash
+bun run lint          # biome check
+bun run check-types   # tsc on server + client
+bun run format        # biome format --write
+```
+
+---
+
+## 🔌 API
+
+All `/api/*` routes (except `/api/verify-pin` and `/api/cron-mocks/`) require a `Authorization: Bearer <token>` header, where the token is issued after PIN verification.
+
+| Method | Endpoint | Purpose |
+| :--- | :--- | :--- |
+| `POST` | `/api/verify-pin` | Exchange a PIN for a bearer token |
+| `GET` | `/api/metrics` | Live system memory, RSS, uptime, WS connections |
+| `GET/POST/PUT/DELETE` | `/api/tasks` | Kanban board CRUD |
+| `GET/POST/PUT/DELETE` | `/api/expenses` | Expense tracker CRUD |
+| `GET/POST` | `/api/bookmarks` | Bookmark manager |
+| `POST` | `/api/sql/query` | Read-only SQL queries (Postgres/MySQL/SQLite) |
+| `POST` | `/api/nosql/*` | MongoDB collection browse/edit |
+| `POST` | `/api/postman/request` | Proxy an arbitrary REST request |
+| `POST` | `/api/writing/process` | Grammar/style cleanup |
+| `GET` | `/api/github/repos` | GitHub repo search |
+| `GET/POST` | `/api/cron-mocks/*` | Mock cron-trigger endpoints |
+
+**WebSocket** `ws://<host>/ws?token=<token>` — subscribes to:
+- `metrics` — server stats broadcast every 2.5s
+- `activity` — task/chat change events in real time
+- `chat_message` — global session chat (in-memory)
+
+---
+
+## 🔐 Authentication
+
+The portal uses a **PIN gate**, not user accounts:
+1. The browser `POST`s the PIN to `/api/verify-pin`.
+2. On success it receives a bearer token, stored in `localStorage`.
+3. Every subsequent API call (REST + WebSocket) carries that token.
+
+This keeps the portal a private single-user console — appropriate for a personal dev dashboard. The token is stateless (validated server-side each request).
 
 ---
 
 ## 🖥️ Desktop App (Electron)
 
-A self-contained desktop wrapper lives in `desktop/`. It bundles the Bun-compiled
-server with the built client into an Electron shell — no Bun or Node install
-required on the target machine.
+A self-contained desktop wrapper lives in `desktop/`. It bundles the Bun-compiled server with the built client into an Electron shell — no Bun or Node install required on the target machine.
 
-```
-desktop/
-├── electron/          # main process, preload, server-manager
-├── scripts/           # build-server / build-client / verify
-├── resources/         # generated: server binary + client bundle
-├── package.json
-├── tsconfig.json
-└── electron-builder.yml
-```
-
-### First-time setup
 ```bash
-bun install            # picks up the new desktop workspace
+bun install               # picks up the desktop workspace
+bun run desktop:verify    # build + typecheck + smoke-test (no packaging)
+bun run desktop:dev       # run from source (compiles server, builds client, launches Electron)
+bun run desktop:build     # NSIS installer + portable .exe in desktop/release/
 ```
 
-### Verify the build pipeline (no packaging)
-```bash
-bun run desktop:verify
-```
-This runs four steps and exits non-zero on the first failure:
-1. `bun build --compile` → `desktop/resources/server/auraflow-server.exe`
-2. `vite build` → stages `client/dist` next to the server binary
-3. `tsc -p desktop/tsconfig.json --noEmit` → typechecks the Electron main/preload
-4. Spawns the compiled server, hits `/` over loopback HTTP, asserts a 200 +
-   real `<!doctype html>` body, then tears it down.
-
-### Run the desktop app from source
-```bash
-bun run desktop:dev
-```
-This compiles the server, builds the client, then launches Electron pointed at
-the local Bun server. The first launch creates `userData/.env` (template only —
-fill in your `MONGODB_URI` and `PIN`).
-
-### Package an installer
-```bash
-bun run desktop:build   # NSIS installer + portable .exe in desktop/release/
-```
-
-### Where things live at runtime
-- `app.getPath("userData")/server.log` — server stdout/stderr
-- `app.getPath("userData")/desktop.log` — Electron main-process log
-- `app.getPath("userData")/.env` — user-editable env file
+**Runtime files** (under Electron's `userData` dir):
+- `server.log` — server stdout/stderr
+- `desktop.log` — Electron main-process log
+- `.env` — user-editable env file (template created on first launch)
 
 ---
 
-## 🔌 API Documentation
+## 🚢 Deployment
 
-### REST HTTP Endpoints (`http://localhost:3001`)
+Production runs on an Oracle Cloud VPS (1 GB RAM, Ubuntu). Deploys are **CI/CD-driven via Woodpecker CI** — pushing to `main` triggers a VPS-native build + atomic deploy:
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/metrics` | Fetches current system specs & memory diagnostics. |
-| `GET` | `/api/tasks` | Retrieves all tasks in the Kanban board. |
-| `POST` | `/api/tasks` | Creates a new task (expects JSON body). |
-| `PUT` | `/api/tasks/:id` | Updates task status, title, description, or priority. |
-| `DELETE` | `/api/tasks/:id` | Deletes a task by ID. |
+```text
+git push origin main
+  → Woodpecker clones on the VPS
+  → bun install + build (client + server bundle)
+  → stages artifact to /opt/auraflow-release-incoming/
+  → activate script: preserve .env, atomic swap incoming→active, chown, restart
+  → Caddy fronts the single Bun process at portal.sanketpatel.online
+```
 
-### WebSocket Endpoint (`ws://localhost:3001/ws`)
-Used for real-time notifications. On connection, the client subscribes to:
-1.  `metrics` channel: Receives live performance stats updates every second.
-2.  `activity` channel: Receives notifications on task alterations and global messages.
-
-#### WebSocket Event Payloads
-*   `{ type: "init", data: { metrics, tasks } }`: Initial state sent upon connection opening.
-*   `{ type: "metrics", data: metrics }`: Broadcasted every 1s (includes RAM, Uptime, connection count).
-*   `{ type: "task_created", data: task }`: Broadcasted when any user creates a task.
-*   `{ type: "task_updated", data: task }`: Broadcasted when a task status shifts or details edit.
-*   `{ type: "task_deleted", data: { id } }`: Broadcasted when a task is deleted.
-*   `{ type: "chat_message", data: chatMessage }`: Broadcasted when a message is sent via session log.
+The server runs as a `systemd` service (`auraflow.service`) with `bun --smol` to cap heap. See [`deploy/`](deploy/) for the unit file and deploy script. Manual rollback is a one-liner (swap `auraflow-prev` back).
 
 ---
 
 ## 🎨 Theme & Customization
-Styling tokens are defined as CSS variables at the top of [client/src/index.css](file:///C:/Users/sanpa/OneDrive/Desktop/Fun%20projects/MyApp/client/src/index.css):
-*   To edit the cyberpunk accents, update `--primary` (violet), `--secondary` (cyan), or `--accent` (rose).
-*   To modify fonts, update `--font-heading` (`Outfit`) or `--font-body` (`Plus Jakarta Sans`).
+
+Styling uses CSS variables at the top of [`client/src/index.css`](client/src/index.css):
+- **Accents** — update the primary/secondary/accent color tokens.
+- **Typography** — swap the heading and body font families.
+- **Tile icons** — each tile has a hand-drawn SVG in [`client/src/components/ui/AppIcons.tsx`](client/src/components/ui/AppIcons.tsx).
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Choice |
+| :--- | :--- |
+| Runtime | [Bun](https://bun.sh) |
+| Server | Bun.serve (HTTP + WebSocket, single process) |
+| Frontend | React 19, Vite, TypeScript, Tailwind v4 |
+| State | React hooks + `localStorage` persistence |
+| Database | MongoDB (primary), Postgres/MySQL/SQLite (query clients) |
+| Validation | Zod (shared schemas) |
+| Desktop | Electron |
+| CI/CD | Woodpecker CI (VPS-native) |
+| Linting | Biome |
+
+---
+
+## 📄 License
+
+Personal project — not currently licensed for redistribution.
