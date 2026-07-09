@@ -109,3 +109,4 @@ desktop/resources/*
 !desktop/resources/icon.svg
 !desktop/resources/icon.ico
 !desktop/resources/icon.png
+.zcode/

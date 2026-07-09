@@ -46,28 +46,6 @@ export function errorResponse(req: Request, message: string, status: number): Re
   });
 }
 
-export function parseResourceName(body: unknown): string | null {
-  if (!body || typeof body !== "object") return null;
-  const name = (body as Record<string, unknown>).name;
-  if (typeof name !== "string") return null;
-  const trimmed = name.trim();
-  if (!trimmed || trimmed.length > 64) return null;
-  return trimmed;
-}
-
-export function invalidResourceNameResponse(req: Request, label: string): Response {
-  return errorResponse(req, `${label} name must be 1-64 characters`, 400);
-}
-
-export function parseJsonObjectBody(body: unknown): Record<string, unknown> | null {
-  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
-  return body as Record<string, unknown>;
-}
-
-export function invalidJsonObjectResponse(req: Request): Response {
-  return errorResponse(req, "Document must be a JSON object", 400);
-}
-
 export function updateFailureResponse(req: Request, err: unknown): Response {
   const message = err instanceof Error ? err.message : "Update failure";
   return errorResponse(req, `Update failure: ${message}`, 400);
