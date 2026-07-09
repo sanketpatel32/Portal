@@ -106,7 +106,12 @@ export async function executeCronJob(job: ICronJobDocument, server?: any): Promi
   try {
     await job.save();
   } catch (err) {
-    console.error("Failed to update job next run time:", err);
+    // If the save fails (transient DB error), job.nextRun stays in the past
+    // in the database. The next scheduler tick (5s later) would re-fetch
+    // and RE-EXECUTE the same job — duplicating side effects every 5s
+    // until the DB recovers. We can't fix the DB doc without a save, but
+    // we log prominently for visibility.
+    console.error(`[scheduler] Failed to save nextRun for job "${job.name}" — may re-execute next tick:`, err);
   }
 
   // 4. Broadcast via WS
@@ -143,19 +148,41 @@ export function startScheduler(server: any) {
 
   console.log("⏰ Cron Scheduler Service starting...");
 
+  // Track job IDs currently in-flight so a slow job executing from tick N
+  // isn't re-fetched and re-executed by tick N+1. Without this, a job that
+  // takes >5s (or a DB save failure) would fire duplicate side effects
+  // every tick until it completes.
+  const inFlight = new Set<string>();
+  const MAX_CONCURRENCY = 5;
+
   schedulerInterval = setInterval(async () => {
     try {
       const now = new Date();
-      // Find active jobs that are due
+      // Find active jobs that are due, excluding any still in-flight
       const dueJobs = await CronJobModel.find({
         active: true,
         nextRun: { $lte: now },
       });
 
-      if (dueJobs.length > 0) {
-        console.log(`⏰ Executing ${dueJobs.length} due cron jobs...`);
-        // Run them concurrently
-        await Promise.all(dueJobs.map((job) => executeCronJob(job, server)));
+      const toRun = dueJobs
+        .filter((job) => {
+          const id = job._id.toString();
+          if (inFlight.has(id)) return false; // still running from a previous tick
+          inFlight.add(id);
+          return true;
+        })
+        .slice(0, MAX_CONCURRENCY); // cap burst concurrency
+
+      if (toRun.length > 0) {
+        console.log(`⏰ Executing ${toRun.length} due cron jobs...`);
+        // Run them concurrently (up to MAX_CONCURRENCY per tick)
+        await Promise.all(
+          toRun.map((job) =>
+            executeCronJob(job, server).finally(() => {
+              inFlight.delete(job._id.toString());
+            }),
+          ),
+        );
       }
     } catch (err) {
       console.error("Error in scheduler tick:", err);
