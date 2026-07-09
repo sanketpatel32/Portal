@@ -2,7 +2,7 @@ import { Copy, RefreshCw, Fingerprint, Hash, Clock, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { playBeep } from "@/lib/audio";
-import { cn } from "@/lib/utils";
+import { cn, createId } from "@/lib/utils";
 import { AppButton } from "./ui/AppButton";
 import { AppInput } from "./ui/AppInput";
 import { CopyButton } from "./ui/CopyButton";
@@ -21,8 +21,10 @@ const FORMAT_LABELS: Record<IdFormat, string> = {
 	sortable: "Sortable",
 };
 
+// createId() guards crypto.randomUUID with a getRandomValues fallback, so it
+// works even in non-secure (plain-HTTP) contexts where randomUUID is undefined.
 function generateUuid(): string {
-	return crypto.randomUUID();
+	return createId();
 }
 
 function generateNanoId(len = 21): string {
