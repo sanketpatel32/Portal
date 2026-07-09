@@ -22,27 +22,87 @@ export {
 
 export let isDbConnected = false;
 
-// Connect to MongoDB asynchronously.
+// Connect to MongoDB asynchronously, with retry + reconnection resilience.
+//
 // The driver's default maxPoolSize is 100 — overkill for a single-user
 // dashboard and wasteful on a 1 GB box. 10 sockets is plenty and lets the OS
 // keep that RAM for the app.
-export function connectDB() {
-  mongoose
-    .connect(env.MONGODB_URI, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 8000,
-      socketTimeoutMS: 45000,
-    })
-    .then(() => {
-      isDbConnected = true;
+//
+// Connection state tracking: `isDbConnected` reflects the LIVE state of the
+// connection, updated via mongoose event listeners. Routes check it to
+// fast-fail with a clear "database offline" message instead of queuing
+// operations that will time out after 8s.
+//
+// Retry: the initial connect retries up to 5 times with exponential backoff
+// (1s, 2s, 4s, 8s, 16s). A transient MongoDB blip at startup should NOT
+// require a manual restart. If all retries fail, the server continues
+// degraded — queries will surface errors, but the process stays up and
+// the event listeners below will auto-flip `isDbConnected` when MongoDB
+// recovers.
+
+// Flip the module-level flag. Exported as `let`, so this mutates the binding
+// that routes import. Using a function avoids the "export let" staleness trap.
+function setDbConnected(value: boolean): void {
+  isDbConnected = value;
+}
+
+// Register listeners so isDbConnected reflects reality, not just the initial
+// connect promise. Without these, a drop leaves isDbConnected=true forever
+// and the offline fast-path in every route becomes dead code.
+function registerConnectionEvents(): void {
+  mongoose.connection.on("connected", () => {
+    setDbConnected(true);
+    console.log("💾 MongoDB connected.");
+  });
+  mongoose.connection.on("disconnected", () => {
+    setDbConnected(false);
+    console.warn("⚠️  MongoDB disconnected. Queries will fail until reconnected.");
+  });
+  mongoose.connection.on("reconnected", () => {
+    setDbConnected(true);
+    console.log("💾 MongoDB reconnected.");
+  });
+  mongoose.connection.on("error", (err) => {
+    console.error("[mongo] connection error:", err.message);
+  });
+}
+
+const MAX_CONNECT_RETRIES = 5;
+const BASE_DELAY_MS = 1000;
+
+async function connectWithRetry(): Promise<void> {
+  for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
+    try {
+      await mongoose.connect(env.MONGODB_URI, {
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 8000,
+        socketTimeoutMS: 45000,
+      });
+      // The "connected" event listener will set the flag, but set it here
+      // too for immediate visibility.
+      setDbConnected(true);
       console.log("💾 Connected to MongoDB successfully via Mongoose");
-    })
-    .catch((error: any) => {
-      console.error("⚠️  MongoDB Connection Warning: Could not establish connection.");
-      console.error(`   URI attempted: ${env.MONGODB_URI.replace(/:([^:@/]+)@/, ":****@")}`);
-      console.error("   Ensure MongoDB is running locally or update the MONGODB_URI in server/.env.");
-      console.error("   The server will run, but database queries will return errors.");
-    });
+      return;
+    } catch (error: any) {
+      const maskedUri = env.MONGODB_URI.replace(/:([^:@/]+)@/, ":****@");
+      if (attempt === MAX_CONNECT_RETRIES) {
+        console.error(`⚠️  MongoDB connection failed after ${MAX_CONNECT_RETRIES} attempts.`);
+        console.error(`   URI attempted: ${maskedUri}`);
+        console.error("   The server will run, but database queries will return errors.");
+        return; // Continue degraded — don't crash the server
+      }
+      const delay = BASE_DELAY_MS * 2 ** (attempt - 1);
+      console.warn(
+        `   MongoDB connect attempt ${attempt}/${MAX_CONNECT_RETRIES} failed, retrying in ${delay}ms…`,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
+export function connectDB() {
+  registerConnectionEvents();
+  void connectWithRetry();
 }
 
 // Mongoose Document Interface
