@@ -1062,6 +1062,72 @@ export const ColorPaletteIcon = (props: IconProps) => (
 	</Frame>
 );
 
+export const MarkdownPreviewerIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Document body lines */}
+		<rect x="12" y="8" width="24" height="32" rx="2" stroke="currentColor" strokeWidth="1.2" opacity="0.25" />
+		{/* Heading bar */}
+		<path d="M16 14H26" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" opacity="0.8" />
+		{/* Body lines */}
+		<path d="M16 19H32M16 23H32M16 27H28" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.4" />
+		{/* Eye (preview) accent */}
+		<circle cx="30" cy="33" r="3" stroke="currentColor" strokeWidth="1.2" opacity="0.7" />
+		<circle cx="30" cy="33" r="1" fill="currentColor" opacity="0.9" />
+	</Frame>
+);
+
+export const EpochConverterIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Clock face */}
+		<circle cx="24" cy="24" r="13" stroke="currentColor" strokeWidth="1.4" opacity="0.3" />
+		{/* Binary/digit hint — stacked 1s and 0s */}
+		<text x="24" y="20" textAnchor="middle" fontFamily="monospace" fontSize="8" fontWeight="bold" fill="currentColor" opacity="0.7">
+			101
+		</text>
+		{/* Clock hands */}
+		<path d="M24 24V18" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.8" />
+		<path d="M24 24L28 27" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.8" />
+		{/* Tick marks */}
+		<path d="M24 12V14M36 24H34" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.3" />
+	</Frame>
+);
+
+export const TextDiffIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Left (removed) column */}
+		<path d="M14 12H22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+		<path d="M14 18H22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+		<path d="M14 24H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
+		{/* Right (added) column */}
+		<path d="M26 12H34" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+		<path d="M26 18H34" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+		<path d="M26 24H32" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+		{/* Center divider */}
+		<path d="M24 8V32" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" opacity="0.3" />
+		{/* +/- symbols */}
+		<text x="16" y="38" fontFamily="monospace" fontSize="9" fontWeight="bold" fill="currentColor" opacity="0.5">
+			-
+		</text>
+		<text x="30" y="38" fontFamily="monospace" fontSize="9" fontWeight="bold" fill="currentColor" opacity="0.8">
+			+
+		</text>
+	</Frame>
+);
+
+export const UuidGeneratorIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* UUID hex blocks */}
+		<rect x="9" y="14" width="7" height="7" rx="1" fill="currentColor" opacity="0.7" />
+		<rect x="18" y="14" width="7" height="7" rx="1" fill="currentColor" opacity="0.5" />
+		<rect x="27" y="14" width="7" height="7" rx="1" fill="currentColor" opacity="0.3" />
+		<rect x="9" y="23" width="7" height="7" rx="1" fill="currentColor" opacity="0.3" />
+		<rect x="18" y="23" width="7" height="7" rx="1" fill="currentColor" opacity="0.5" />
+		<rect x="27" y="23" width="7" height="7" rx="1" fill="currentColor" opacity="0.7" />
+		{/* Dashes between blocks */}
+		<path d="M16.5 17.5H18M25.5 17.5H27M16.5 26.5H18M25.5 26.5H27" stroke="currentColor" strokeWidth="1" opacity="0.4" />
+	</Frame>
+);
+
 /** Maps app IDs to their icon components */
 export const appIcons: Record<string, React.ComponentType<IconProps>> = {
 	"github-issue-analyser": GithubFinderIcon,
@@ -1080,4 +1146,8 @@ export const appIcons: Record<string, React.ComponentType<IconProps>> = {
 	"regex-tester": RegexTesterIcon,
 	"password-generator": PasswordGeneratorIcon,
 	"color-palette": ColorPaletteIcon,
+	"markdown-previewer": MarkdownPreviewerIcon,
+	"epoch-converter": EpochConverterIcon,
+	"text-diff": TextDiffIcon,
+	"uuid-generator": UuidGeneratorIcon,
 };
