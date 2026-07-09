@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "tailwindcss";
@@ -385,8 +385,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 0.3; filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2)); }
-  50% { opacity: 0.7; filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.4)); }
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
 }
 
 .animate-pulse-glow {
