@@ -12,6 +12,7 @@ import {
 	updateNavigationPath,
 } from "./lib/app-navigation";
 import { playBeep } from "./lib/audio";
+import { safeGetItem, safeRemoveItem } from "./lib/safe-storage";
 import { cn } from "./lib/utils";
 import type { AppOneSubappId } from "./types/app";
 
@@ -276,7 +277,7 @@ const OVERFLOW_HIDDEN_SUBAPPS = new Set<AppOneSubappId>([
 function App() {
 	const initialNavigation = readInitialNavigation();
 	const [token, setToken] = useState<string | null>(() =>
-		localStorage.getItem("auraflow_pin_token"),
+		safeGetItem("auraflow_pin_token"),
 	);
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 	const [isUnlocked, setIsUnlocked] = useState(false);
@@ -304,7 +305,7 @@ function App() {
 
 	const handleLogout = () => {
 		playBeep("error");
-		localStorage.removeItem("auraflow_pin_token");
+		safeRemoveItem("auraflow_pin_token");
 		setToken(null);
 		setIsAuthenticated(false);
 		setIsUnlocked(false);

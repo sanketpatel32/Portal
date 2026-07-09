@@ -1,15 +1,17 @@
+import { safeGetItem, safeRemoveItem, safeSetItem } from "./safe-storage";
+
 /** Shared external MongoDB URI for the NoSQL Client only. */
 const LEGACY_STORAGE_KEY = "nosql-mongodb-uri";
 const EXTERNAL_MONGODB_URI_KEY = "external-mongodb-uri";
 
 export function getStoredMongoUri(): string {
-  const current = localStorage.getItem(EXTERNAL_MONGODB_URI_KEY);
+  const current = safeGetItem(EXTERNAL_MONGODB_URI_KEY);
   if (current) return current;
 
-  const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+  const legacy = safeGetItem(LEGACY_STORAGE_KEY);
   if (legacy) {
-    localStorage.setItem(EXTERNAL_MONGODB_URI_KEY, legacy);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    safeSetItem(EXTERNAL_MONGODB_URI_KEY, legacy);
+    safeRemoveItem(LEGACY_STORAGE_KEY);
     return legacy;
   }
 
@@ -19,16 +21,16 @@ export function getStoredMongoUri(): string {
 export function setStoredMongoUri(uri: string): void {
   const trimmed = uri.trim();
   if (trimmed) {
-    localStorage.setItem(EXTERNAL_MONGODB_URI_KEY, trimmed);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    safeSetItem(EXTERNAL_MONGODB_URI_KEY, trimmed);
+    safeRemoveItem(LEGACY_STORAGE_KEY);
     return;
   }
   clearStoredMongoUri();
 }
 
 export function clearStoredMongoUri(): void {
-  localStorage.removeItem(EXTERNAL_MONGODB_URI_KEY);
-  localStorage.removeItem(LEGACY_STORAGE_KEY);
+  safeRemoveItem(EXTERNAL_MONGODB_URI_KEY);
+  safeRemoveItem(LEGACY_STORAGE_KEY);
 }
 
 export function hasStoredMongoUri(): boolean {

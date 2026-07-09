@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { env } from "@/env";
 import { playBeep } from "../lib/audio";
+import { safeRemoveItem, safeSetItem } from "../lib/safe-storage";
 import { verifyPinSchema } from "@shared/validation/auth";
 import { validateInput } from "@/lib/form-validation";
 
@@ -48,12 +49,12 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
           setIsUnlocked(true);
           setIsAuthenticated(true);
         } else {
-          localStorage.removeItem("auraflow_pin_token");
+          safeRemoveItem("auraflow_pin_token");
           setToken(null);
           setIsAuthenticated(false);
         }
       } catch {
-        localStorage.removeItem("auraflow_pin_token");
+        safeRemoveItem("auraflow_pin_token");
         setToken(null);
         setIsAuthenticated(false);
       } finally {
@@ -106,7 +107,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
         // Wait for unlocking slide-up animation
         setTimeout(() => {
           setToken(data.token);
-          localStorage.setItem("auraflow_pin_token", data.token);
+          safeSetItem("auraflow_pin_token", data.token);
           setIsAuthenticated(true);
         }, 500);
       } else {
