@@ -145,6 +145,20 @@ export const PomodoroTimer: React.FC<Props> = ({ onBack }) => {
 		setRemaining(phaseSeconds(phaseRef.current));
 	}, [phaseSeconds]);
 
+	// Resync the countdown when the ACTIVE phase's duration is edited while
+	// paused. Without this, changing Focus 25→10 while paused at 24:59 keeps
+	// the stale 24:59 until the user presses Reset. We only resync when the
+	// changed duration belongs to the current phase, so editing the long-break
+	// minutes while in focus mode doesn't clobber the focus countdown.
+	useEffect(() => {
+		if (isRunning) return;
+		const changedMin =
+			phase === "focus" ? focusMin : phase === "short" ? shortMin : longMin;
+		const newSecs = Math.max(1, changedMin) * 60;
+		setRemaining((r) => (r === newSecs ? r : newSecs));
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [focusMin, shortMin, longMin]);
+
 	// Skip jumps to the next phase WITHOUT counting a skipped focus session
 	// as completed — only natural run-outs increment the counter.
 	const skip = useCallback(() => {
