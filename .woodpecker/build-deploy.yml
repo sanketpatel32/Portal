@@ -37,8 +37,8 @@ steps:
 
   stage:
     # Stage a minimal deploy artifact directly into the incoming dir. The Portal
-    # server is a single self-contained bun-build bundle (837 modules inlined),
-    # so NO node_modules ships — just the bundle + client/dist. Tiny (~4MB).
+    # server is a single self-contained bun-build bundle (all deps inlined),
+    # so NO node_modules ships — just the bundle + client/dist.
     image: bash
     commands:
       - |
