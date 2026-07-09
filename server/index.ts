@@ -130,7 +130,14 @@ async function serveStaticAsset(url: URL, req: Request): Promise<Response | null
   // Only try to serve paths that look like a file (have an extension). Any
   // extensionless path (e.g. "/", "/expenses", "/clock") is a client-side
   // route and must fall through to index.html for the SPA router to handle.
-  const pathname = decodeURIComponent(url.pathname);
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    // Malformed percent-encoding (e.g. /assets/%E0%A4%) → let it fall through
+    // to the SPA index rather than throwing an uncaught URIError.
+    return null;
+  }
   const lastSlash = pathname.lastIndexOf("/");
   const lastSegment = lastSlash >= 0 ? pathname.slice(lastSlash + 1) : pathname;
   if (!lastSegment.includes(".")) return null;
@@ -262,6 +269,9 @@ const server = Bun.serve({
       console.log(`WebSocket client connected. Connections: ${connectionState.activeConnections}`);
 
       Promise.all([getMetrics(), TaskModel.find().sort({ createdAt: -1 })]).then(([metrics, tasks]) => {
+        // Guard: the client may have disconnected before the DB queries
+        // resolved. Sending on a closed socket throws — check readyState.
+        if (ws.readyState !== 1) return; // 1 = WebSocket.OPEN
         ws.send(JSON.stringify({
           type: "init",
           data: {
@@ -303,7 +313,10 @@ const server = Bun.serve({
       }
     },
     close(ws, code, message) {
-      connectionState.activeConnections--;
+      // Clamp to 0: Bun can fire close without a matching open (or fire it
+      // twice in edge cases), which would make the count go negative and
+      // corrupt the metrics broadcast guard.
+      connectionState.activeConnections = Math.max(0, connectionState.activeConnections - 1);
       console.log(`WebSocket client disconnected. Connections: ${connectionState.activeConnections}`);
 
       getMetrics().then(metrics => {
@@ -316,7 +329,10 @@ const server = Bun.serve({
   },
 });
 
-setInterval(async () => {
+// Metrics broadcast loop. Store the handle so shutdown() can clear it,
+// preventing post-stop noise from getMetrics()/server.publish() on a
+// stopped server.
+const metricsIntervalId = setInterval(async () => {
   if (connectionState.activeConnections > 0) {
     const metrics = await getMetrics();
     server.publish("metrics", JSON.stringify({
@@ -354,6 +370,7 @@ function shutdown(signal: string) {
   console.log(`[shutdown] Received ${signal}. Draining connections...`);
 
   server.stop(true, 2000); // stop accepting new conns, wait ≤2s for active ones
+  clearInterval(metricsIntervalId); // stop the metrics broadcast loop
   stopScheduler();
 
   // Exit promptly once connections drain; the timeout above is the backstop.
