@@ -114,6 +114,26 @@ const UuidGenerator = lazy(() =>
 		default: m.UuidGenerator,
 	})),
 );
+const JwtDecoder = lazy(() =>
+	import("./components/JwtDecoder").then((m) => ({
+		default: m.JwtDecoder,
+	})),
+);
+const CronParser = lazy(() =>
+	import("./components/CronParser").then((m) => ({
+		default: m.CronParser,
+	})),
+);
+const HttpStatusReference = lazy(() =>
+	import("./components/HttpStatusReference").then((m) => ({
+		default: m.HttpStatusReference,
+	})),
+);
+const CssGradient = lazy(() =>
+	import("./components/CssGradient").then((m) => ({
+		default: m.CssGradient,
+	})),
+);
 
 const appOneSubapps: Array<{
 	id: AppOneSubappId;
@@ -219,6 +239,26 @@ const appOneSubapps: Array<{
 		id: "uuid-generator",
 		label: "UUID Gen",
 		detail: "Bulk UUID v4, NanoID, hex, sortable IDs",
+	},
+	{
+		id: "jwt-decoder",
+		label: "JWT Decoder",
+		detail: "Decode token header, payload, and check expiry",
+	},
+	{
+		id: "cron-parser",
+		label: "Cron Parser",
+		detail: "Translate cron expressions and see next fire times",
+	},
+	{
+		id: "http-status",
+		label: "HTTP Codes",
+		detail: "Searchable reference of all HTTP status codes",
+	},
+	{
+		id: "css-gradient",
+		label: "CSS Gradient",
+		detail: "Visual gradient editor with copy-ready CSS",
 	},
 ];
 
@@ -500,6 +540,22 @@ function App() {
 						) : activeSubapp === "uuid-generator" ? (
 							<ErrorBoundary label="UUID Generator" onBack={goHome}>
 								<UuidGenerator onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "jwt-decoder" ? (
+							<ErrorBoundary label="JWT Decoder" onBack={goHome}>
+								<JwtDecoder onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "cron-parser" ? (
+							<ErrorBoundary label="Cron Parser" onBack={goHome}>
+								<CronParser onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "http-status" ? (
+							<ErrorBoundary label="HTTP Status Reference" onBack={goHome}>
+								<HttpStatusReference onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "css-gradient" ? (
+							<ErrorBoundary label="CSS Gradient" onBack={goHome}>
+								<CssGradient onBack={goHome} />
 							</ErrorBoundary>
 						) : (
 							// Unknown / stale subapp id — bail out to home.

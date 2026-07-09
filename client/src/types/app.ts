@@ -18,4 +18,8 @@ export type AppOneSubappId =
 	| "markdown-previewer"
 	| "epoch-converter"
 	| "text-diff"
-	| "uuid-generator";
+	| "uuid-generator"
+	| "jwt-decoder"
+	| "cron-parser"
+	| "http-status"
+	| "css-gradient";
