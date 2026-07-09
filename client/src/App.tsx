@@ -94,6 +94,26 @@ const ColorPalette = lazy(() =>
 		default: m.ColorPalette,
 	})),
 );
+const MarkdownPreviewer = lazy(() =>
+	import("./components/MarkdownPreviewer").then((m) => ({
+		default: m.MarkdownPreviewer,
+	})),
+);
+const EpochConverter = lazy(() =>
+	import("./components/EpochConverter").then((m) => ({
+		default: m.EpochConverter,
+	})),
+);
+const TextDiff = lazy(() =>
+	import("./components/TextDiff").then((m) => ({
+		default: m.TextDiff,
+	})),
+);
+const UuidGenerator = lazy(() =>
+	import("./components/UuidGenerator").then((m) => ({
+		default: m.UuidGenerator,
+	})),
+);
 
 const appOneSubapps: Array<{
 	id: AppOneSubappId;
@@ -179,6 +199,26 @@ const appOneSubapps: Array<{
 		id: "color-palette",
 		label: "Color Palette",
 		detail: "Harmonies, format conversions, WCAG contrast",
+	},
+	{
+		id: "markdown-previewer",
+		label: "Markdown",
+		detail: "Live preview with a built-in parser, copy HTML",
+	},
+	{
+		id: "epoch-converter",
+		label: "Epoch",
+		detail: "Unix timestamp ↔ human date, both directions",
+	},
+	{
+		id: "text-diff",
+		label: "Text Diff",
+		detail: "Line-by-line comparison with highlighting",
+	},
+	{
+		id: "uuid-generator",
+		label: "UUID Gen",
+		detail: "Bulk UUID v4, NanoID, hex, sortable IDs",
 	},
 ];
 
@@ -444,6 +484,22 @@ function App() {
 						) : activeSubapp === "color-palette" ? (
 							<ErrorBoundary label="Color Palette" onBack={goHome}>
 								<ColorPalette onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "markdown-previewer" ? (
+							<ErrorBoundary label="Markdown Previewer" onBack={goHome}>
+								<MarkdownPreviewer onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "epoch-converter" ? (
+							<ErrorBoundary label="Epoch Converter" onBack={goHome}>
+								<EpochConverter onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "text-diff" ? (
+							<ErrorBoundary label="Text Diff" onBack={goHome}>
+								<TextDiff onBack={goHome} />
+							</ErrorBoundary>
+						) : activeSubapp === "uuid-generator" ? (
+							<ErrorBoundary label="UUID Generator" onBack={goHome}>
+								<UuidGenerator onBack={goHome} />
 							</ErrorBoundary>
 						) : (
 							// Unknown / stale subapp id — bail out to home.

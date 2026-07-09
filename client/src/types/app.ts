@@ -14,4 +14,8 @@ export type AppOneSubappId =
 	| "pomodoro-timer"
 	| "regex-tester"
 	| "password-generator"
-	| "color-palette";
+	| "color-palette"
+	| "markdown-previewer"
+	| "epoch-converter"
+	| "text-diff"
+	| "uuid-generator";
