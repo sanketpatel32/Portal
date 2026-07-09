@@ -60,7 +60,23 @@ function escapeHtml(input: string): string {
 	return input
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;");
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
+}
+
+/**
+ * Sanitize a URL for safe use in an href attribute. Blocks dangerous
+ * schemes (javascript:, data:, vbscript:) that could execute script on
+ * click, and quotes are already escaped by escapeHtml so attribute
+ * breakout is impossible. Returns "" for unsafe URLs so the link renders
+ * as inert text.
+ */
+function safeHref(url: string): string {
+	const decoded = url.replace(/&amp;/g, "&").replace(/&#0*3[02];/g, " ");
+	const scheme = decoded.trim().toLowerCase().split(":")[0] ?? "";
+	const blocked = ["javascript", "data", "vbscript", "file"];
+	if (blocked.includes(scheme)) return "";
+	return url;
 }
 
 /**
@@ -88,10 +104,16 @@ function applyInline(input: string): string {
 	out = out.replace(/_([^_]+)_/g, "<em>$1</em>");
 
 	// Links: [text](url). rel/ target keep the preview from navigating the tab.
+	// safeHref blocks javascript:/data:/vbscript: schemes that could execute
+	// script on click.
 	out = out.replace(
 		/\[([^\]]+)\]\(([^)\s]+)\)/g,
-		(_m, text: string, url: string) =>
-			`<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`,
+		(_m, text: string, url: string) => {
+			const href = safeHref(url);
+			return href
+				? `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`
+				: text;
+		},
 	);
 
 	// Restore code spans, wrapped in <code>.
