@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Play,
   Plus,
@@ -138,7 +138,13 @@ export function CronScheduler({ token, onBack }: Props) {
     fetchJobs();
   }, []);
 
-  // WebSockets synchronization
+  // Track selectedJob in a ref so the WebSocket onmessage handler can read
+  // the latest value WITHOUT being in the effect dependency array. Without
+  // this, every job click tears down and rebuilds the entire WS connection.
+  const selectedJobRef = useRef(selectedJob);
+  selectedJobRef.current = selectedJob;
+
+  // WebSockets synchronization — depends only on [token], not selectedJob.
   useEffect(() => {
     const wsUrl = `${env.VITE_WS_URL}?token=${encodeURIComponent(token)}`;
     const socket = new WebSocket(wsUrl);
@@ -161,7 +167,7 @@ export function CronScheduler({ token, onBack }: Props) {
             )
           );
 
-          if (selectedJob && selectedJob.id === run.jobId) {
+          if (selectedJobRef.current && selectedJobRef.current.id === run.jobId) {
             fetchLogs(run.jobId);
           }
         } else if (
@@ -182,7 +188,7 @@ export function CronScheduler({ token, onBack }: Props) {
     return () => {
       socket.close();
     };
-  }, [token, selectedJob]);
+  }, [token]);
 
   const handleSelectJob = (job: CronJob) => {
     setSelectedJob(job);

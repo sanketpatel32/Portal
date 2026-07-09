@@ -58,7 +58,7 @@ export const ClockTimerAlarm: React.FC<ClockTimerAlarmProps> = ({
         setAlarmTriggered(true);
         playBeep("success");
       }
-    }, 200);
+    }, 1000);
     return () => clearInterval(timer);
   }, [alarmActive, alarmTriggered, alarmH, alarmM]);
 
