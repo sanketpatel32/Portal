@@ -280,15 +280,17 @@ export const PickerWheel: React.FC<Props> = ({ onBack }) => {
 
 	const updateLabel = useCallback(
 		(id: string, label: string) => {
+			if (spinning) return;
 			setOptions((prev) =>
 				prev.map((o) => (o.id === id ? { ...o, label } : o)),
 			);
 		},
-		[setOptions],
+		[setOptions, spinning],
 	);
 
 	const updateWeight = useCallback(
 		(id: string, weight: number) => {
+			if (spinning) return;
 			setOptions((prev) =>
 				prev.map((o) =>
 					o.id === id
@@ -297,11 +299,12 @@ export const PickerWheel: React.FC<Props> = ({ onBack }) => {
 				),
 			);
 		},
-		[setOptions],
+		[setOptions, spinning],
 	);
 
 	const cycleColor = useCallback(
 		(id: string) => {
+			if (spinning) return;
 			setOptions((prev) =>
 				prev.map((o) => {
 					if (o.id !== id) return o;
@@ -311,7 +314,7 @@ export const PickerWheel: React.FC<Props> = ({ onBack }) => {
 				}),
 			);
 		},
-		[setOptions],
+		[setOptions, spinning],
 	);
 
 	const reset = useCallback(() => {
