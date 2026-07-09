@@ -1128,6 +1128,62 @@ export const UuidGeneratorIcon = (props: IconProps) => (
 	</Frame>
 );
 
+export const JwtDecoderIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Token segments (header.payload.sig) */}
+		<rect x="9" y="16" width="10" height="16" rx="1.5" fill="currentColor" opacity="0.7" />
+		<rect x="21" y="16" width="10" height="16" rx="1.5" fill="currentColor" opacity="0.4" />
+		{/* Dots between segments */}
+		<circle cx="20" cy="24" r="1" fill="currentColor" opacity="0.5" />
+		{/* Lock overlay */}
+		<path d="M17 10V8C17 6 19 5 21 5C23 5 25 6 25 8V10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.6" />
+		<rect x="15" y="10" width="12" height="5" rx="1" stroke="currentColor" strokeWidth="1.4" opacity="0.6" />
+	</Frame>
+);
+
+export const CronParserIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Cron expression hint */}
+		<text x="24" y="20" textAnchor="middle" fontFamily="monospace" fontSize="7" fontWeight="bold" fill="currentColor" opacity="0.7">
+			* * * * *
+		</text>
+		{/* Clock ring + hands */}
+		<circle cx="24" cy="30" r="8" stroke="currentColor" strokeWidth="1.2" opacity="0.3" />
+		<path d="M24 30V25M24 30L27 32" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+		<circle cx="24" cy="30" r="1.2" fill="currentColor" opacity="0.8" />
+	</Frame>
+);
+
+export const HttpStatusIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Globe */}
+		<circle cx="24" cy="24" r="14" stroke="currentColor" strokeWidth="1.4" opacity="0.3" />
+		{/* Meridians */}
+		<ellipse cx="24" cy="24" rx="6" ry="14" stroke="currentColor" strokeWidth="1" opacity="0.25" />
+		<path d="M10 24H38M24 10V38M14 16H34M14 32H34" stroke="currentColor" strokeWidth="0.8" opacity="0.2" />
+		{/* Status code */}
+		<text x="24" y="28" textAnchor="middle" fontFamily="monospace" fontSize="9" fontWeight="bold" fill="currentColor" opacity="0.9">
+			200
+		</text>
+	</Frame>
+);
+
+export const CssGradientIcon = (props: IconProps) => (
+	<Frame {...props}>
+		{/* Gradient rectangle (left-to-right opacity gradient) */}
+		<defs>
+			<linearGradient id="grad-icon" x1="0" y1="0" x2="1" y2="0">
+				<stop offset="0%" stopColor="currentColor" stopOpacity="0.8" />
+				<stop offset="100%" stopColor="currentColor" stopOpacity="0.15" />
+			</linearGradient>
+		</defs>
+		<rect x="10" y="14" width="28" height="20" rx="2" fill="url(#grad-icon)" />
+		{/* Brush / code hint below */}
+		<path d="M16 40L32 40" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
+		<path d="M18 38L20 42M22 38L24 42M26 38L28 42" stroke="currentColor" strokeWidth="1" strokeLinecap="round" opacity="0.3" />
+	</Frame>
+);
+
 /** Maps app IDs to their icon components */
 export const appIcons: Record<string, React.ComponentType<IconProps>> = {
 	"github-issue-analyser": GithubFinderIcon,
@@ -1150,4 +1206,8 @@ export const appIcons: Record<string, React.ComponentType<IconProps>> = {
 	"epoch-converter": EpochConverterIcon,
 	"text-diff": TextDiffIcon,
 	"uuid-generator": UuidGeneratorIcon,
+	"jwt-decoder": JwtDecoderIcon,
+	"cron-parser": CronParserIcon,
+	"http-status": HttpStatusIcon,
+	"css-gradient": CssGradientIcon,
 };
