@@ -608,7 +608,7 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
   const canBrowse = connectionStatus === "connected" && hasUri;
 
   return (
-    <ModuleShell variant="tool" maxWidth="none">
+    <ModuleShell variant="tool" maxWidth="7xl">
       <ModuleHeaderBar
         showBack={false}
         leading={

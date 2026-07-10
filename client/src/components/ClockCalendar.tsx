@@ -241,7 +241,7 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
   }
 
   return (
-    <div className="w-full max-w-3xl animate-fade-in select-none">
+    <div className="w-full max-w-7xl animate-fade-in select-none">
       <div className="mx-auto mb-10 w-full max-w-[20.5rem] overflow-visible sm:max-w-[22rem]">
         <Calendar
           mode="single"

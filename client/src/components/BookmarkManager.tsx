@@ -229,7 +229,7 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
   };
 
   return (
-    <ModuleShell variant="tool" maxWidth="none">
+    <ModuleShell variant="tool" maxWidth="7xl">
       <ModuleHeaderBar
         showBack={false}
         leading={

@@ -401,7 +401,7 @@ export function CronScheduler({ token, onBack }: Props) {
   };
 
   return (
-    <ModuleShell variant="tool" maxWidth="none">
+    <ModuleShell variant="tool" maxWidth="7xl">
       <ModuleHeaderBar
         showBack={false}
         leading={

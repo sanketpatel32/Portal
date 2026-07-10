@@ -430,7 +430,7 @@ export function WritingAgent({ token, onBack, playBeep }: Props) {
 	};
 
 	return (
-		<ModuleShell variant="tool" maxWidth="none" moduleClass="writing-agent">
+		<ModuleShell variant="tool" maxWidth="7xl" moduleClass="writing-agent">
 			<ModuleHeaderBar
 				title="Writing Agent"
 				icon={

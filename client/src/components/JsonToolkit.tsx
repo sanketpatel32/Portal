@@ -48,7 +48,7 @@ export const JsonToolkit: React.FC<Props> = ({ onBack }) => {
 	const [tab, setTab] = usePersistentState<TabId>("auraflow_json_tab", "json");
 
 	return (
-		<div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-2 animate-scale-up">
+		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
 			<ModuleHeaderBar
 				title="JSON + Encoding Toolkit"
 				subtitle="Format, minify, encode and hash — all offline"

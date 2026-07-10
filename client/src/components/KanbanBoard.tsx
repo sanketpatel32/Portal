@@ -177,7 +177,7 @@ export const KanbanBoard: React.FC<Props> = ({ onBack, playBeep: beep }) => {
 	const handleDragCancel = () => setActiveId(null);
 
 	return (
-		<ModuleShell variant="tool" maxWidth="none">
+		<ModuleShell variant="tool" maxWidth="7xl">
 			<ModuleHeaderBar
 				title="Kanban Board"
 				meta={

@@ -109,7 +109,7 @@ export const UuidGenerator: React.FC<Props> = ({ onBack }) => {
 	const formattedIds = ids.map((id) => applyFormat(id, uppercase, braces));
 
 	return (
-		<div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-2 animate-scale-up">
+		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
 			<ModuleHeaderBar
 				title="UUID Generator"
 				subtitle="Bulk-generate UUIDs, NanoIDs, and more"

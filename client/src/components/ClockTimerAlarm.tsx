@@ -96,7 +96,7 @@ export const ClockTimerAlarm: React.FC<ClockTimerAlarmProps> = ({
   const isAlarmRinging = timerAlarm || alarmTriggered;
 
   return (
-    <ModuleShell variant="content" maxWidth="3xl" className="flex flex-col items-center justify-start gap-8">
+    <ModuleShell variant="content" maxWidth="7xl" className="flex flex-col items-center justify-start gap-8">
       {!isAlarmRinging && (
         <ModuleHeaderBar
           title="Time & Calendar"

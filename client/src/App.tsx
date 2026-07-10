@@ -559,8 +559,8 @@ function App() {
 								<CssGradient onBack={goHome} />
 							</ErrorBoundary>
 						) : (
-							// Unknown / stale subapp id — bail out to home.
-							<div className="mx-auto flex w-full max-w-3xl flex-col items-center animate-scale-up px-2">
+								// Unknown / stale subapp id — bail out to home.
+								<div className="mx-auto flex w-full max-w-7xl flex-col items-center animate-scale-up px-2">
 								<ModuleHeaderBar
 									title="Unknown Module"
 									onBack={goHome}

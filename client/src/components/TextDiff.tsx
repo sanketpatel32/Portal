@@ -153,7 +153,7 @@ export const TextDiff: React.FC<Props> = ({ onBack }) => {
 	const hasInput = Boolean(original || changed);
 
 	return (
-		<div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-2 animate-scale-up">
+		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
 			<ModuleHeaderBar
 				title="Text Diff"
 				subtitle="Line-by-line comparison with add/remove highlighting"

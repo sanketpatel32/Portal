@@ -367,7 +367,7 @@ export function PostmanClient({ token, onBack, playBeep }: Props) {
   })();
 
   return (
-    <ModuleShell variant="tool" maxWidth="none">
+    <ModuleShell variant="tool" maxWidth="7xl">
       <ModuleHeaderBar
         title="Postman"
         icon={<Send className="size-4 shrink-0 text-zinc-500" strokeWidth={1.4} />}

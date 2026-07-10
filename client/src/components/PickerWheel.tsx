@@ -363,7 +363,7 @@ export const PickerWheel: React.FC<Props> = ({ onBack }) => {
 	const radius = size / 2 - 4;
 
 	return (
-		<div className="mx-auto flex w-full max-w-5xl animate-scale-up flex-col gap-4 px-2">
+		<div className="mx-auto flex w-full max-w-7xl animate-scale-up flex-col gap-4 px-2">
 			<ModuleHeaderBar
 				title="Picker Wheel"
 				subtitle="Spin to choose"

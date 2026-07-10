@@ -426,7 +426,7 @@ export function SqlClient({ token, onBack, playBeep }: Props) {
   const canRun = connectionStatus === "connected" && hasConnection;
 
   return (
-    <ModuleShell variant="tool" maxWidth="none">
+    <ModuleShell variant="tool" maxWidth="7xl">
       <ModuleHeaderBar
         showBack={false}
         leading={

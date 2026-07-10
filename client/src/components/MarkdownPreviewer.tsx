@@ -267,7 +267,7 @@ export const MarkdownPreviewer: React.FC<Props> = ({ onBack }) => {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-2 animate-scale-up">
+		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
 			<ModuleHeaderBar
 				title="Markdown Previewer"
 				subtitle="Live preview with a built-in parser"

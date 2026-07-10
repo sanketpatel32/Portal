@@ -27,7 +27,7 @@ interface ModuleShellProps {
 
 export const ModuleShell: React.FC<ModuleShellProps> = ({
   variant = "content",
-  maxWidth = "6xl",
+  maxWidth = "7xl",
   moduleClass,
   className,
   header,

@@ -349,7 +349,7 @@ export const CronParser: React.FC<Props> = ({ onBack }) => {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-2 animate-scale-up">
+		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
 			<ModuleHeaderBar
 				title="Cron Parser"
 				subtitle="Translate cron expressions to human-readable schedules"

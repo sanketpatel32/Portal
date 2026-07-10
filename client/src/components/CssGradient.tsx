@@ -67,7 +67,7 @@ export const CssGradient: React.FC<Props> = ({ onBack }) => {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-2 animate-scale-up">
+		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
 			<ModuleHeaderBar
 				title="CSS Gradient Generator"
 				subtitle="Visual editor with copy-ready CSS"

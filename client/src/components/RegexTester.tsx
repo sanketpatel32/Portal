@@ -173,7 +173,7 @@ export const RegexTester: React.FC<Props> = ({ onBack }) => {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-2 animate-scale-up">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
       <ModuleHeaderBar
         title="Regex Tester"
         subtitle="Test patterns with live match highlighting"

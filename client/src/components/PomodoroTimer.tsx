@@ -191,7 +191,7 @@ export const PomodoroTimer: React.FC<Props> = ({ onBack }) => {
 	const cyclePosition = sessionsRef.current % 4;
 
 	return (
-		<div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-2 animate-scale-up">
+		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
 			<ModuleHeaderBar
 				title="Pomodoro Timer"
 				subtitle="Focus sessions with automatic break cycling"

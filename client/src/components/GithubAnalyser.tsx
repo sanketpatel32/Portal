@@ -214,7 +214,7 @@ export const GithubAnalyser: React.FC<GithubAnalyserProps> = ({ onBack }) => {
   return (
     <ModuleShell
       variant="tool"
-      maxWidth="6xl"
+      maxWidth="7xl"
       header={
         <ModuleHeaderBar
           title="GitHub Finder"
