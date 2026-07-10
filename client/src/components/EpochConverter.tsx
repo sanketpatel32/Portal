@@ -5,10 +5,7 @@ import { playBeep } from "@/lib/audio";
 import { AppButton } from "./ui/AppButton";
 import { AppInput } from "./ui/AppInput";
 import { CopyButton } from "./ui/CopyButton";
-import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { SectionHeader } from "./ui/SectionHeader";
-
-type Props = { onBack: () => void };
 
 // Epoch values above this magnitude are interpreted as milliseconds rather
 // than seconds. 10^12 ~= year 2001 in ms, well past any plausible second count.
@@ -73,7 +70,7 @@ const ResultRow: React.FC<{ label: string; value: string }> = ({
   </div>
 );
 
-export const EpochConverter: React.FC<Props> = ({ onBack }) => {
+export const EpochTool: React.FC = () => {
   const [epochInput, setEpochInput] = usePersistentState(
     "auraflow_epoch_input",
     "",
@@ -117,14 +114,7 @@ export const EpochConverter: React.FC<Props> = ({ onBack }) => {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
-      <ModuleHeaderBar
-        title="Epoch Converter"
-        subtitle="Unix timestamp ↔ human date, both directions"
-        onBack={onBack}
-        backLabel="Home"
-      />
-
+    <div className="flex flex-col gap-4">
       {/* Live "now" banner */}
       <div className="flex flex-col gap-3 border border-white/10 bg-white/[0.03] p-5">
         <div className="flex items-center justify-between gap-3">

@@ -75,24 +75,24 @@ const JsonToolkit = lazy(() =>
 		default: m.JsonToolkit,
 	})),
 );
-const PomodoroTimer = lazy(() =>
-	import("./components/PomodoroTimer").then((m) => ({
-		default: m.PomodoroTimer,
+const GeneratorTools = lazy(() =>
+	import("./components/GeneratorTools").then((m) => ({
+		default: m.GeneratorTools,
 	})),
 );
-const RegexTester = lazy(() =>
-	import("./components/RegexTester").then((m) => ({
-		default: m.RegexTester,
+const TextTools = lazy(() =>
+	import("./components/TextTools").then((m) => ({
+		default: m.TextTools,
 	})),
 );
-const PasswordGenerator = lazy(() =>
-	import("./components/PasswordGenerator").then((m) => ({
-		default: m.PasswordGenerator,
+const ColorTools = lazy(() =>
+	import("./components/ColorTools").then((m) => ({
+		default: m.ColorTools,
 	})),
 );
-const ColorPalette = lazy(() =>
-	import("./components/ColorPalette").then((m) => ({
-		default: m.ColorPalette,
+const TimeTools = lazy(() =>
+	import("./components/TimeTools").then((m) => ({
+		default: m.TimeTools,
 	})),
 );
 const MarkdownPreviewer = lazy(() =>
@@ -100,39 +100,9 @@ const MarkdownPreviewer = lazy(() =>
 		default: m.MarkdownPreviewer,
 	})),
 );
-const EpochConverter = lazy(() =>
-	import("./components/EpochConverter").then((m) => ({
-		default: m.EpochConverter,
-	})),
-);
-const TextDiff = lazy(() =>
-	import("./components/TextDiff").then((m) => ({
-		default: m.TextDiff,
-	})),
-);
-const UuidGenerator = lazy(() =>
-	import("./components/UuidGenerator").then((m) => ({
-		default: m.UuidGenerator,
-	})),
-);
-const JwtDecoder = lazy(() =>
-	import("./components/JwtDecoder").then((m) => ({
-		default: m.JwtDecoder,
-	})),
-);
-const CronParser = lazy(() =>
-	import("./components/CronParser").then((m) => ({
-		default: m.CronParser,
-	})),
-);
 const HttpStatusReference = lazy(() =>
 	import("./components/HttpStatusReference").then((m) => ({
 		default: m.HttpStatusReference,
-	})),
-);
-const CssGradient = lazy(() =>
-	import("./components/CssGradient").then((m) => ({
-		default: m.CssGradient,
 	})),
 );
 
@@ -184,7 +154,7 @@ const appOneSubapps: Array<{
 	{
 		id: "clock-calendar",
 		label: "Time & Cal",
-		detail: "Clock, timer, alarm and calendar in one view",
+		detail: "Clock, timer, alarm, pomodoro and calendar",
 	},
 	{
 		id: "bookmark-manager",
@@ -198,28 +168,28 @@ const appOneSubapps: Array<{
 	},
 	{
 		id: "json-toolkit",
-		label: "JSON Toolkit",
-		detail: "Format JSON, encode Base64/URL, and hash text",
+		label: "Data Toolkit",
+		detail: "Format JSON, encode Base64/URL, hash & decode JWT",
 	},
 	{
-		id: "pomodoro-timer",
-		label: "Pomodoro",
-		detail: "Focus timer with automatic break cycling",
+		id: "generator-tools",
+		label: "Generators",
+		detail: "Secure passwords & bulk UUID/NanoID generation",
 	},
 	{
-		id: "regex-tester",
-		label: "Regex Tester",
-		detail: "Test patterns with live match highlighting",
+		id: "text-tools",
+		label: "Text Tools",
+		detail: "Test regex patterns & compare text diffs",
 	},
 	{
-		id: "password-generator",
-		label: "Password Gen",
-		detail: "Secure passwords with strength estimation",
+		id: "color-tools",
+		label: "Color & CSS",
+		detail: "Palettes, harmonies, gradients & WCAG contrast",
 	},
 	{
-		id: "color-palette",
-		label: "Color Palette",
-		detail: "Harmonies, format conversions, WCAG contrast",
+		id: "time-tools",
+		label: "Time Tools",
+		detail: "Epoch converter & cron expression parser",
 	},
 	{
 		id: "markdown-previewer",
@@ -227,39 +197,9 @@ const appOneSubapps: Array<{
 		detail: "Live preview with a built-in parser, copy HTML",
 	},
 	{
-		id: "epoch-converter",
-		label: "Epoch",
-		detail: "Unix timestamp ↔ human date, both directions",
-	},
-	{
-		id: "text-diff",
-		label: "Text Diff",
-		detail: "Line-by-line comparison with highlighting",
-	},
-	{
-		id: "uuid-generator",
-		label: "UUID Gen",
-		detail: "Bulk UUID v4, NanoID, hex, sortable IDs",
-	},
-	{
-		id: "jwt-decoder",
-		label: "JWT Decoder",
-		detail: "Decode token header, payload, and check expiry",
-	},
-	{
-		id: "cron-parser",
-		label: "Cron Parser",
-		detail: "Translate cron expressions and see next fire times",
-	},
-	{
 		id: "http-status",
 		label: "HTTP Codes",
 		detail: "Searchable reference of all HTTP status codes",
-	},
-	{
-		id: "css-gradient",
-		label: "CSS Gradient",
-		detail: "Visual gradient editor with copy-ready CSS",
 	},
 ];
 
@@ -507,56 +447,32 @@ function App() {
 								<PickerWheel onBack={goHome} />
 							</ErrorBoundary>
 						) : activeSubapp === "json-toolkit" ? (
-							<ErrorBoundary label="JSON Toolkit" onBack={goHome}>
+							<ErrorBoundary label="Data Toolkit" onBack={goHome}>
 								<JsonToolkit onBack={goHome} />
 							</ErrorBoundary>
-						) : activeSubapp === "pomodoro-timer" ? (
-							<ErrorBoundary label="Pomodoro Timer" onBack={goHome}>
-								<PomodoroTimer onBack={goHome} />
+						) : activeSubapp === "generator-tools" ? (
+							<ErrorBoundary label="Generators" onBack={goHome}>
+								<GeneratorTools onBack={goHome} />
 							</ErrorBoundary>
-						) : activeSubapp === "regex-tester" ? (
-							<ErrorBoundary label="Regex Tester" onBack={goHome}>
-								<RegexTester onBack={goHome} />
+						) : activeSubapp === "text-tools" ? (
+							<ErrorBoundary label="Text Tools" onBack={goHome}>
+								<TextTools onBack={goHome} />
 							</ErrorBoundary>
-						) : activeSubapp === "password-generator" ? (
-							<ErrorBoundary label="Password Generator" onBack={goHome}>
-								<PasswordGenerator onBack={goHome} />
+						) : activeSubapp === "color-tools" ? (
+							<ErrorBoundary label="Color & CSS" onBack={goHome}>
+								<ColorTools onBack={goHome} />
 							</ErrorBoundary>
-						) : activeSubapp === "color-palette" ? (
-							<ErrorBoundary label="Color Palette" onBack={goHome}>
-								<ColorPalette onBack={goHome} />
+						) : activeSubapp === "time-tools" ? (
+							<ErrorBoundary label="Time Tools" onBack={goHome}>
+								<TimeTools onBack={goHome} />
 							</ErrorBoundary>
 						) : activeSubapp === "markdown-previewer" ? (
 							<ErrorBoundary label="Markdown Previewer" onBack={goHome}>
 								<MarkdownPreviewer onBack={goHome} />
 							</ErrorBoundary>
-						) : activeSubapp === "epoch-converter" ? (
-							<ErrorBoundary label="Epoch Converter" onBack={goHome}>
-								<EpochConverter onBack={goHome} />
-							</ErrorBoundary>
-						) : activeSubapp === "text-diff" ? (
-							<ErrorBoundary label="Text Diff" onBack={goHome}>
-								<TextDiff onBack={goHome} />
-							</ErrorBoundary>
-						) : activeSubapp === "uuid-generator" ? (
-							<ErrorBoundary label="UUID Generator" onBack={goHome}>
-								<UuidGenerator onBack={goHome} />
-							</ErrorBoundary>
-						) : activeSubapp === "jwt-decoder" ? (
-							<ErrorBoundary label="JWT Decoder" onBack={goHome}>
-								<JwtDecoder onBack={goHome} />
-							</ErrorBoundary>
-						) : activeSubapp === "cron-parser" ? (
-							<ErrorBoundary label="Cron Parser" onBack={goHome}>
-								<CronParser onBack={goHome} />
-							</ErrorBoundary>
 						) : activeSubapp === "http-status" ? (
 							<ErrorBoundary label="HTTP Status Reference" onBack={goHome}>
 								<HttpStatusReference onBack={goHome} />
-							</ErrorBoundary>
-						) : activeSubapp === "css-gradient" ? (
-							<ErrorBoundary label="CSS Gradient" onBack={goHome}>
-								<CssGradient onBack={goHome} />
 							</ErrorBoundary>
 						) : (
 								// Unknown / stale subapp id — bail out to home.

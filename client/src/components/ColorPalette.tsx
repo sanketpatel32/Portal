@@ -7,7 +7,6 @@ import { AppButton } from "./ui/AppButton";
 import { AppInput } from "./ui/AppInput";
 import { CopyButton } from "./ui/CopyButton";
 import { EmptyState } from "./ui/EmptyState";
-import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { SectionHeader } from "./ui/SectionHeader";
 
 /**
@@ -21,10 +20,6 @@ import { SectionHeader } from "./ui/SectionHeader";
  *
  * No server, no network. All color math is local.
  */
-
-type Props = {
-	onBack: () => void;
-};
 
 type HarmonyId =
 	| "complementary"
@@ -169,7 +164,7 @@ function contrastRatio(a: RGB, b: RGB): number {
 
 // ─── component ──────────────────────────────────────────────────────────────
 
-export const ColorPalette: React.FC<Props> = ({ onBack }) => {
+export const PaletteTool: React.FC = () => {
 	const [baseColor, setBaseColor] = usePersistentState(
 		"auraflow_color_base",
 		"#3b82f6"
@@ -252,14 +247,7 @@ export const ColorPalette: React.FC<Props> = ({ onBack }) => {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
-			<ModuleHeaderBar
-				title="Color Palette"
-				subtitle="Harmonies, conversions, and WCAG contrast"
-				onBack={onBack}
-				backLabel="Home"
-			/>
-
+		<div className="flex flex-col gap-4">
 			{/* Base color picker */}
 			<section className="flex flex-col gap-3 border border-white/10 bg-black/40 p-4">
 				<SectionHeader

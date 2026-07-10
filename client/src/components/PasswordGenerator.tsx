@@ -6,10 +6,7 @@ import { cn } from "@/lib/utils";
 import { AppButton } from "./ui/AppButton";
 import { CopyButton } from "./ui/CopyButton";
 import { EmptyState } from "./ui/EmptyState";
-import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { SectionHeader } from "./ui/SectionHeader";
-
-type Props = { onBack: () => void };
 
 const UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const LOWER = "abcdefghijklmnopqrstuvwxyz";
@@ -157,7 +154,7 @@ function computeStrength(
 	return { entropy, tier };
 }
 
-export const PasswordGenerator: React.FC<Props> = ({ onBack }) => {
+export const PasswordTool: React.FC = () => {
 	const [length, setLength] = usePersistentState("auraflow_pw_length", 20);
 	const [useUpper, setUseUpper] = usePersistentState("auraflow_pw_upper", true);
 	const [useLower, setUseLower] = usePersistentState("auraflow_pw_lower", true);
@@ -215,14 +212,7 @@ export const PasswordGenerator: React.FC<Props> = ({ onBack }) => {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
-			<ModuleHeaderBar
-				title="Password Generator"
-				subtitle="Cryptographically secure, with strength estimation"
-				onBack={onBack}
-				backLabel="Home"
-			/>
-
+		<div className="flex flex-col gap-4">
 			{/* Password display */}
 			<div className="flex flex-col gap-3 border border-white/10 bg-black/40 p-4">
 				<div className="flex items-center justify-between gap-3">

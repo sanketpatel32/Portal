@@ -7,10 +7,7 @@ import { AppButton } from "./ui/AppButton";
 import { AppInput } from "./ui/AppInput";
 import { CopyButton } from "./ui/CopyButton";
 import { EmptyState } from "./ui/EmptyState";
-import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { SectionHeader } from "./ui/SectionHeader";
-
-type Props = { onBack: () => void };
 
 type IdFormat = "uuid" | "nanoid" | "hex" | "sortable";
 
@@ -67,7 +64,7 @@ function applyFormat(id: string, uppercase: boolean, braces: boolean): string {
 	return out;
 }
 
-export const UuidGenerator: React.FC<Props> = ({ onBack }) => {
+export const UuidTool: React.FC = () => {
 	const [count, setCount] = usePersistentState("auraflow_uuid_count", 5);
 	const [format, setFormat] = usePersistentState<IdFormat>(
 		"auraflow_uuid_format",
@@ -109,14 +106,7 @@ export const UuidGenerator: React.FC<Props> = ({ onBack }) => {
 	const formattedIds = ids.map((id) => applyFormat(id, uppercase, braces));
 
 	return (
-		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
-			<ModuleHeaderBar
-				title="UUID Generator"
-				subtitle="Bulk-generate UUIDs, NanoIDs, and more"
-				onBack={onBack}
-				backLabel="Home"
-			/>
-
+		<div className="flex flex-col gap-4">
 			{/* Configuration */}
 			<div className="flex flex-col gap-3 border border-white/10 bg-black/40 p-4">
 				<SectionHeader title="Configuration" icon={<Hash className="size-3.5" strokeWidth={1.5} />} />

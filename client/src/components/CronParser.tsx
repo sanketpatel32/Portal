@@ -6,10 +6,7 @@ import { AppButton } from "./ui/AppButton";
 import { AppInput } from "./ui/AppInput";
 import { CopyButton } from "./ui/CopyButton";
 import { EmptyState } from "./ui/EmptyState";
-import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { SectionHeader } from "./ui/SectionHeader";
-
-type Props = { onBack: () => void };
 
 interface FieldDef {
 	min: number;
@@ -321,7 +318,7 @@ function formatFireTime(d: Date): string {
 	return `${weekday} ${date} · ${time}`;
 }
 
-export const CronParser: React.FC<Props> = ({ onBack }) => {
+export const CronTool: React.FC = () => {
 	const [expr, setExpr] = usePersistentState("auraflow_cron_expr", "0 9 * * 1-5");
 
 	// Track now once per mount; next-fire is relative to this anchor. We avoid
@@ -349,14 +346,7 @@ export const CronParser: React.FC<Props> = ({ onBack }) => {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
-			<ModuleHeaderBar
-				title="Cron Parser"
-				subtitle="Translate cron expressions to human-readable schedules"
-				onBack={onBack}
-				backLabel="Home"
-			/>
-
+		<div className="flex flex-col gap-4">
 			{/* Expression input */}
 			<div className="flex flex-col gap-3 border border-white/10 bg-black/40 p-4">
 				<SectionHeader

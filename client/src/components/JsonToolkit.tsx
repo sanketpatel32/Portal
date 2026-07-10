@@ -3,6 +3,7 @@ import {
 	Braces,
 	CheckCircle2,
 	Hash,
+	Key,
 	Link2,
 	Minimize2,
 	Wand2,
@@ -17,6 +18,7 @@ import { EmptyState } from "./ui/EmptyState";
 import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { SectionHeader } from "./ui/SectionHeader";
 import { TabBar } from "./ui/TabBar";
+import { JwtTool } from "./JwtDecoder";
 
 /**
  * JSON + Encoding Toolkit — a client-only dev-utility tile.
@@ -35,13 +37,14 @@ type Props = {
 	onBack: () => void;
 };
 
-type TabId = "json" | "base64" | "url" | "hash";
+type TabId = "json" | "base64" | "url" | "hash" | "jwt";
 
 const TABS = [
 	{ id: "json" as const, label: "JSON", icon: <Braces className="size-3.5" /> },
 	{ id: "base64" as const, label: "Base64", icon: <Wand2 className="size-3.5" /> },
 	{ id: "url" as const, label: "URL", icon: <Link2 className="size-3.5" /> },
 	{ id: "hash" as const, label: "Hash", icon: <Hash className="size-3.5" /> },
+	{ id: "jwt" as const, label: "JWT", icon: <Key className="size-3.5" /> },
 ];
 
 export const JsonToolkit: React.FC<Props> = ({ onBack }) => {
@@ -50,8 +53,8 @@ export const JsonToolkit: React.FC<Props> = ({ onBack }) => {
 	return (
 		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
 			<ModuleHeaderBar
-				title="JSON + Encoding Toolkit"
-				subtitle="Format, minify, encode and hash — all offline"
+				title="Data Toolkit"
+				subtitle="Format, encode, hash & decode — all offline"
 				onBack={onBack}
 				backLabel="Home"
 			/>
@@ -67,6 +70,7 @@ export const JsonToolkit: React.FC<Props> = ({ onBack }) => {
 			{tab === "base64" && <Base64Tool />}
 			{tab === "url" && <UrlTool />}
 			{tab === "hash" && <HashTool />}
+			{tab === "jwt" && <JwtTool />}
 		</div>
 	);
 };

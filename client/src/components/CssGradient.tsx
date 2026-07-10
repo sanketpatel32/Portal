@@ -5,10 +5,7 @@ import { playBeep } from "@/lib/audio";
 import { cn, createId } from "@/lib/utils";
 import { AppButton } from "./ui/AppButton";
 import { CopyButton } from "./ui/CopyButton";
-import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { SectionHeader } from "./ui/SectionHeader";
-
-type Props = { onBack: () => void };
 
 type GradientType = "linear" | "radial" | "conic";
 type ColorStop = { id: string; color: string; position: number };
@@ -24,7 +21,7 @@ const PRESETS: Preset[] = [
 	{ label: "Gold", stops: [{ color: "#fbbf24", pos: 0 }, { color: "#78350f", pos: 100 }], angle: 135 },
 ];
 
-export const CssGradient: React.FC<Props> = ({ onBack }) => {
+export const GradientTool: React.FC = () => {
 	const [type, setType] = usePersistentState<GradientType>("auraflow_gradient_type", "linear");
 	const [angle, setAngle] = usePersistentState("auraflow_gradient_angle", 135);
 	const [stops, setStops] = usePersistentState<ColorStop[]>(
@@ -67,14 +64,7 @@ export const CssGradient: React.FC<Props> = ({ onBack }) => {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
-			<ModuleHeaderBar
-				title="CSS Gradient Generator"
-				subtitle="Visual editor with copy-ready CSS"
-				onBack={onBack}
-				backLabel="Home"
-			/>
-
+		<div className="flex flex-col gap-4">
 			{/* Live preview */}
 			<section className="flex flex-col gap-3 border border-white/10 bg-black/40 p-4">
 				<SectionHeader title="Preview" icon={<Eye className="size-3.5" />} />

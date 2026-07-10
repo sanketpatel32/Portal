@@ -8,10 +8,7 @@ import { AppInput } from "./ui/AppInput";
 import { AppTextArea } from "./ui/AppTextArea";
 import { CopyButton } from "./ui/CopyButton";
 import { EmptyState } from "./ui/EmptyState";
-import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { SectionHeader } from "./ui/SectionHeader";
-
-type Props = { onBack: () => void };
 
 const ALL_FLAGS = ["g", "i", "m", "s", "u", "y"] as const;
 type FlagChar = (typeof ALL_FLAGS)[number];
@@ -43,7 +40,7 @@ function validateFlags(raw: unknown): FlagChar[] {
   );
 }
 
-export const RegexTester: React.FC<Props> = ({ onBack }) => {
+export const RegexTool: React.FC = () => {
   const [pattern, setPattern] = usePersistentState("auraflow_regex_pattern", "");
   const [activeFlags, setActiveFlags] = usePersistentState<FlagChar[]>(
     "auraflow_regex_flags",
@@ -173,14 +170,7 @@ export const RegexTester: React.FC<Props> = ({ onBack }) => {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
-      <ModuleHeaderBar
-        title="Regex Tester"
-        subtitle="Test patterns with live match highlighting"
-        onBack={onBack}
-        backLabel="Home"
-      />
-
+    <div className="flex flex-col gap-4">
       {/* Pattern + flags */}
       <div className="flex flex-col gap-3 border border-white/10 bg-black/40 p-4">
         <SectionHeader

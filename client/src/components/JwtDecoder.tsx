@@ -11,10 +11,7 @@ import { usePersistentState } from "@/hooks/usePersistentState";
 import { AppTextArea } from "./ui/AppTextArea";
 import { CopyButton } from "./ui/CopyButton";
 import { EmptyState } from "./ui/EmptyState";
-import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { SectionHeader } from "./ui/SectionHeader";
-
-type Props = { onBack: () => void };
 
 // A JWT claim value can be any JSON type. Numeric claims (exp, iat, nbf) are
 // interpreted as Unix timestamps in seconds per RFC 7519.
@@ -102,7 +99,7 @@ const ClaimRow: React.FC<{
 	</div>
 );
 
-export const JwtDecoder: React.FC<Props> = ({ onBack }) => {
+export const JwtTool: React.FC = () => {
 	const [token, setToken] = usePersistentState("auraflow_jwt_token", "");
 
 	const decoded = useMemo<Decoded>(() => {
@@ -149,14 +146,7 @@ export const JwtDecoder: React.FC<Props> = ({ onBack }) => {
 	const isExpired = expUnix !== undefined && expUnix < nowSec;
 
 	return (
-		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
-			<ModuleHeaderBar
-				title="JWT Decoder"
-				subtitle="Inspect token header, payload, and expiry"
-				onBack={onBack}
-				backLabel="Home"
-			/>
-
+		<div className="flex flex-col gap-4">
 			{/* Token input */}
 			<div className="flex flex-col gap-3 border border-white/10 bg-white/[0.03] p-5">
 				<div className="flex items-center justify-between gap-3">

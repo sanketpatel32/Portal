@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import { AppButton } from "./ui/AppButton";
 import { AppTextArea } from "./ui/AppTextArea";
 import { EmptyState } from "./ui/EmptyState";
-import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 
 /**
  * Text Diff — a client-only line-by-line comparison tool.
@@ -22,7 +21,7 @@ import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
  * colour-coded highlighting.
  */
 
-type Props = { onBack: () => void };
+
 
 type DiffLine = {
 	type: "added" | "removed" | "unchanged";
@@ -99,7 +98,7 @@ function normalize(s: string): string {
 	return s.trim().replace(/\s+/g, " ");
 }
 
-export const TextDiff: React.FC<Props> = ({ onBack }) => {
+export const DiffTool: React.FC = () => {
 	const [original, setOriginal] = usePersistentState(
 		"auraflow_diff_original",
 		"",
@@ -153,14 +152,7 @@ export const TextDiff: React.FC<Props> = ({ onBack }) => {
 	const hasInput = Boolean(original || changed);
 
 	return (
-		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
-			<ModuleHeaderBar
-				title="Text Diff"
-				subtitle="Line-by-line comparison with add/remove highlighting"
-				onBack={onBack}
-				backLabel="Home"
-			/>
-
+		<div className="flex flex-col gap-4">
 			{/* Toolbar */}
 			<div className="flex flex-wrap items-center gap-3">
 				<button

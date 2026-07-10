@@ -7,13 +7,14 @@ import { usePersistentState } from "@/hooks/usePersistentState";
 import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { ModuleShell } from "./ui/ModuleShell";
 import { playBeep } from "../lib/audio";
+import { PomodoroTool } from "./PomodoroTimer";
 
 interface ClockTimerAlarmProps {
   token: string | null;
   onBack: () => void;
 }
 
-type TabType = "clock" | "alarm" | "timer" | "calendar";
+type TabType = "clock" | "alarm" | "timer" | "pomodoro" | "calendar";
 
 export const ClockTimerAlarm: React.FC<ClockTimerAlarmProps> = ({
   token,
@@ -90,6 +91,7 @@ export const ClockTimerAlarm: React.FC<ClockTimerAlarmProps> = ({
     { id: "clock", label: "CLOCK" },
     { id: "alarm", label: "ALARM" },
     { id: "timer", label: "TIMER" },
+    { id: "pomodoro", label: "POMODORO" },
     ...(token ? [{ id: "calendar", label: "CALENDAR" }] : []),
   ];
 
@@ -279,6 +281,10 @@ export const ClockTimerAlarm: React.FC<ClockTimerAlarmProps> = ({
                   ALARM SET FOR {alarmH.toString().padStart(2, '0')}:{alarmM.toString().padStart(2, '0')}
                 </div>
               )}
+            </div>
+          ) : activeTab === "pomodoro" ? (
+            <div className="w-full select-none animate-fade-in">
+              <PomodoroTool />
             </div>
           ) : activeTab === "calendar" ? (
             token ? (

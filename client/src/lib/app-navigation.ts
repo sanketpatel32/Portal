@@ -13,18 +13,12 @@ const VALID_SUBAPP_IDS = new Set<AppOneSubappId>([
 	"bookmark-manager",
 	"picker-wheel",
 	"json-toolkit",
-	"pomodoro-timer",
-	"regex-tester",
-	"password-generator",
-	"color-palette",
+	"generator-tools",
+	"text-tools",
+	"color-tools",
+	"time-tools",
 	"markdown-previewer",
-	"epoch-converter",
-	"text-diff",
-	"uuid-generator",
-	"jwt-decoder",
-	"cron-parser",
 	"http-status",
-	"css-gradient",
 ]);
 
 // Legacy app numbers (pre-portal-grid) → their new subapp tile. Time & Cal used

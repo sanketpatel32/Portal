@@ -5,12 +5,9 @@ import { playBeep } from "@/lib/audio";
 import { cn } from "@/lib/utils";
 import { AppButton } from "./ui/AppButton";
 import { AppInput } from "./ui/AppInput";
-import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { SectionHeader } from "./ui/SectionHeader";
 
 type Phase = "focus" | "short" | "long";
-
-type Props = { onBack: () => void };
 
 const RING_R = 54;
 const RING_C = 2 * Math.PI * RING_R;
@@ -45,7 +42,7 @@ const DurationField: React.FC<{ label: string; value: number; onChange: (n: numb
 	</label>
 );
 
-export const PomodoroTimer: React.FC<Props> = ({ onBack }) => {
+export const PomodoroTool: React.FC = () => {
 	const [focusMin, setFocusMin] = usePersistentState("auraflow_pomo_focus", 25);
 	const [shortMin, setShortMin] = usePersistentState("auraflow_pomo_short", 5);
 	const [longMin, setLongMin] = usePersistentState("auraflow_pomo_long", 15);
@@ -191,14 +188,7 @@ export const PomodoroTimer: React.FC<Props> = ({ onBack }) => {
 	const cyclePosition = sessionsRef.current % 4;
 
 	return (
-		<div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-2 animate-scale-up">
-			<ModuleHeaderBar
-				title="Pomodoro Timer"
-				subtitle="Focus sessions with automatic break cycling"
-				onBack={onBack}
-				backLabel="Home"
-			/>
-
+		<div className="flex flex-col gap-4">
 			{/* Progress ring + readout */}
 			<div className="flex flex-col items-center gap-6 py-4">
 				<div className="relative flex h-64 w-64 items-center justify-center sm:h-72 sm:w-72">
@@ -317,4 +307,4 @@ export const PomodoroTimer: React.FC<Props> = ({ onBack }) => {
 	);
 };
 
-PomodoroTimer.displayName = "PomodoroTimer";
+PomodoroTool.displayName = "PomodoroTool";
