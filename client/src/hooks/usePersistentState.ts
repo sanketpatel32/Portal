@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * A drop-in replacement for useState that transparently persists the value to
@@ -25,6 +25,11 @@ import { useCallback, useRef, useState } from "react";
  *   - runtime-only values like a ticking clock
  *
  * The returned setter matches useState's signature (value OR updater fn).
+ *
+ * Writes are debounced by 300ms: the in-memory state updates immediately (so
+ * the UI stays responsive), but the localStorage write is coalesced. This
+ * avoids a synchronous JSON.stringify + setItem on every keystroke for large
+ * text fields (markdown editor, SQL query boxes, etc.).
  */
 
 const isBrowser =
@@ -73,11 +78,32 @@ export function usePersistentState<T>(
   const keyRef = useRef(key);
   keyRef.current = key;
 
+  // Debounce timer ref — coalesces rapid writes (e.g. typing) into one
+  // localStorage.setItem call per 300ms window.
+  const writeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingValueRef = useRef<T>(value);
+
+  // Flush any pending write on unmount so the latest value isn't lost.
+  useEffect(() => {
+    return () => {
+      if (writeTimerRef.current) {
+        clearTimeout(writeTimerRef.current);
+        writeStored(keyRef.current, pendingValueRef.current);
+      }
+    };
+  }, []);
+
   const set = useCallback((next: T | ((prev: T) => T)) => {
     setValue((prev) => {
       const resolved =
         typeof next === "function" ? (next as (prev: T) => T)(prev) : next;
-      writeStored(keyRef.current, resolved);
+      // Schedule a debounced write instead of writing synchronously.
+      pendingValueRef.current = resolved;
+      if (writeTimerRef.current) clearTimeout(writeTimerRef.current);
+      writeTimerRef.current = setTimeout(() => {
+        writeStored(keyRef.current, pendingValueRef.current);
+        writeTimerRef.current = null;
+      }, 300);
       return resolved;
     });
   }, []);

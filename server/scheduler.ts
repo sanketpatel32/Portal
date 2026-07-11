@@ -1,4 +1,4 @@
-import { CronJobModel, CronJobLogModel, type ICronJobDocument } from "./db";
+import { CronJobModel, CronJobLogModel, type ICronJobDocument, getDb } from "./db";
 import { getNextCronDate } from "./cron-utils";
 
 let schedulerInterval: Timer | null = null;
@@ -109,9 +109,22 @@ export async function executeCronJob(job: ICronJobDocument, server?: any): Promi
     // If the save fails (transient DB error), job.nextRun stays in the past
     // in the database. The next scheduler tick (5s later) would re-fetch
     // and RE-EXECUTE the same job — duplicating side effects every 5s
-    // until the DB recovers. We can't fix the DB doc without a save, but
-    // we log prominently for visibility.
-    console.error(`[scheduler] Failed to save nextRun for job "${job.name}" — may re-execute next tick:`, err);
+    // until the DB recovers. Retry once; if that fails, park the job far in
+    // the future so it can't re-execute until the user investigates.
+    console.error(`[scheduler] Failed to save nextRun for job "${job.name}":`, err);
+    try {
+      await job.save();
+    } catch {
+      // Last resort: raw UPDATE to push nextRun 24h out. This prevents the
+      // duplicate-execution loop even if the Mongoose-style save() keeps failing.
+      try {
+        const parked = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        getDb().prepare("UPDATE cron_jobs SET next_run = ? WHERE id = ?").run(parked, job.id);
+        console.error(`[scheduler] Parked job "${job.name}" for 24h due to persistent save failure.`);
+      } catch (parkErr) {
+        console.error(`[scheduler] Could not park job "${job.name}" — may re-execute next tick:`, parkErr);
+      }
+    }
   }
 
   // 4. Broadcast via WS

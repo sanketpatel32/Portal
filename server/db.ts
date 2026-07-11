@@ -15,6 +15,7 @@
 
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 import { existsSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { env } from "./env";
 
@@ -110,6 +111,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+CREATE INDEX IF NOT EXISTS idx_expenses_recurring_date ON expenses(recurring_id, date);
 
 CREATE TABLE IF NOT EXISTS clock_todos (
   id TEXT PRIMARY KEY,
@@ -209,18 +211,19 @@ export function connectDB(): void {
     dbInstance = new Database(dbPath, { create: true });
     dbInstance.exec("PRAGMA journal_mode = WAL;");
     dbInstance.exec("PRAGMA foreign_keys = ON;");
+    dbInstance.exec("PRAGMA busy_timeout = 5000;");
     dbInstance.exec(SCHEMA_SQL);
 
     setDbConnected(true);
     console.log(`💾 SQLite connected at ${dbPath}`);
   } catch (err: any) {
     // Retry in the OS temp dir if the primary path is unwritable.
-    const tmpDir = require("node:os").tmpdir();
-    dbPath = join(tmpDir, "auraflow.db");
+    dbPath = join(tmpdir(), "auraflow.db");
     try {
       dbInstance = new Database(dbPath, { create: true });
       dbInstance.exec("PRAGMA journal_mode = WAL;");
       dbInstance.exec("PRAGMA foreign_keys = ON;");
+      dbInstance.exec("PRAGMA busy_timeout = 5000;");
       dbInstance.exec(SCHEMA_SQL);
       setDbConnected(true);
       console.warn(`⚠️  SQLite primary path unwritable, using fallback: ${dbPath}`);
@@ -229,6 +232,23 @@ export function connectDB(): void {
       console.error("⚠️  SQLite connection failed:", err2?.message ?? err2);
       console.error("   The server will run, but database queries will return errors.");
     }
+  }
+}
+
+/**
+ * Close the database connection on shutdown. Ensures the WAL is checkpointed
+ * so -wal/-shm sidecar files are flushed to the main .db file before exit.
+ */
+export function closeDB(): void {
+  if (dbInstance) {
+    stmtCache.clear(); // statements are bound to the old handle
+    try {
+      dbInstance.close();
+    } catch {
+      // best-effort — process is exiting anyway
+    }
+    dbInstance = null;
+    setDbConnected(false);
   }
 }
 
@@ -242,6 +262,30 @@ export function getDb(): Database {
 function db(): Database {
   if (!dbInstance) throw new Error("Database not initialised — connectDB() was not called");
   return dbInstance;
+}
+
+// ── Prepared-statement cache ──────────────────────────────────────
+//
+// Bun:sqlite's prepare() parses the SQL and allocates a Statement wrapper each
+// call. For fixed-shape queries (SELECT * FROM tasks WHERE id = ?) the string
+// is byte-identical every time, so caching the Statement object eliminates
+// redundant parsing across the ~86 call sites in this module.
+
+type Statement = ReturnType<Database["prepare"]>;
+const stmtCache = new Map<string, Statement>();
+
+/**
+ * Get (or create) a cached prepared statement for the given SQL. Statements
+// are keyed by the exact SQL string, so dynamic INSERT/UPDATE queries cache
+// per distinct column-set (a small finite set).
+ */
+function stmt(sql: string): Statement {
+  let s = stmtCache.get(sql);
+  if (!s) {
+    s = db().prepare(sql);
+    stmtCache.set(sql, s);
+  }
+  return s;
 }
 
 // ── ID generation ─────────────────────────────────────────────────
@@ -553,7 +597,7 @@ class PendingQuery<T> implements PromiseLike<T[]> {
       params.push(this.skipCount);
     }
     // Cast: all SQLQueryBindings-compatible (numbers from skip/limit, strings from where).
-    const rows = db().prepare(sql).all(...params) as Record<string, unknown>[];
+    const rows = stmt(sql).all(...params) as Record<string, unknown>[];
     return rows.map((r) => this.hydrateFn(r));
   }
 }
@@ -625,7 +669,7 @@ function createModel<T>(config: ModelConfig): Model<T> {
       const params: SQLQueryBindings[] = [...where.params];
       if (where.sql) sql += ` WHERE ${where.sql}`;
       sql += ` LIMIT 1`;
-      const row = db().prepare(sql).get(...params) as Record<string, unknown> | null;
+      const row = stmt(sql).get(...params) as Record<string, unknown> | null;
       return row ? hydrateFn(row) : null;
     },
 
@@ -675,7 +719,7 @@ function createModel<T>(config: ModelConfig): Model<T> {
         .prepare(`SELECT * FROM ${config.table} WHERE id = ?`)
         .get(id) as Record<string, unknown> | null;
       if (!row) return null;
-      db().prepare(`DELETE FROM ${config.table} WHERE id = ?`).run(id);
+      stmt(`DELETE FROM ${config.table} WHERE id = ?`).run(id);
       return hydrateFn(row);
     },
 
@@ -684,7 +728,7 @@ function createModel<T>(config: ModelConfig): Model<T> {
       let sql = `DELETE FROM ${config.table}`;
       const params: SQLQueryBindings[] = [...where.params];
       if (where.sql) sql += ` WHERE ${where.sql}`;
-      const res = db().prepare(sql).run(...params);
+      const res = stmt(sql).run(...params);
       return res.changes;
     },
 
@@ -693,7 +737,7 @@ function createModel<T>(config: ModelConfig): Model<T> {
       let sql = `SELECT COUNT(*) AS c FROM ${config.table}`;
       const params: SQLQueryBindings[] = [...where.params];
       if (where.sql) sql += ` WHERE ${where.sql}`;
-      const row = db().prepare(sql).get(...params) as { c: number };
+      const row = stmt(sql).get(...params) as { c: number };
       return row.c;
     },
   };
@@ -1040,11 +1084,11 @@ export const ExpenseModel = {
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
     sql += ` LIMIT 1`;
-    const row = db().prepare(sql).get(...params) as Record<string, unknown> | null;
+    const row = stmt(sql).get(...params) as Record<string, unknown> | null;
     return row ? expenseHydrate(row) : null;
   },
   async findById(id: string) {
-    const row = db().prepare(`SELECT * FROM expenses WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM expenses WHERE id = ?`).get(id) as Record<string, unknown> | null;
     return row ? expenseHydrate(row) : null;
   },
   async create(data: Partial<IExpenseDocument>) {
@@ -1065,8 +1109,8 @@ export const ExpenseModel = {
       return (insertData[jsField!] ?? null) as SQLQueryBindings;
     });
     const placeholders = cols.map(() => "?").join(", ");
-    db().prepare(`INSERT INTO expenses (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
-    const row = db().prepare(`SELECT * FROM expenses WHERE id = ?`).get(id) as Record<string, unknown>;
+    stmt(`INSERT INTO expenses (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
+    const row = stmt(`SELECT * FROM expenses WHERE id = ?`).get(id) as Record<string, unknown>;
     return expenseHydrate(row);
   },
   async findByIdAndUpdate(id: string, patch: Record<string, unknown>, opts = { new: true }) {
@@ -1083,16 +1127,16 @@ export const ExpenseModel = {
         vals.push((fullData[jsField] ?? null) as SQLQueryBindings);
       }
     }
-    const res = db().prepare(`UPDATE expenses SET ${cols.join(", ")} WHERE id = ?`).run(...vals, id);
+    const res = stmt(`UPDATE expenses SET ${cols.join(", ")} WHERE id = ?`).run(...vals, id);
     if (res.changes === 0) return null;
     if (!opts.new) return null;
-    const row = db().prepare(`SELECT * FROM expenses WHERE id = ?`).get(id) as Record<string, unknown>;
+    const row = stmt(`SELECT * FROM expenses WHERE id = ?`).get(id) as Record<string, unknown>;
     return row ? expenseHydrate(row) : null;
   },
   async findByIdAndDelete(id: string) {
-    const row = db().prepare(`SELECT * FROM expenses WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM expenses WHERE id = ?`).get(id) as Record<string, unknown> | null;
     if (!row) return null;
-    db().prepare(`DELETE FROM expenses WHERE id = ?`).run(id);
+    stmt(`DELETE FROM expenses WHERE id = ?`).run(id);
     return expenseHydrate(row);
   },
   async deleteMany(filter: Filter | Record<string, unknown>) {
@@ -1100,14 +1144,14 @@ export const ExpenseModel = {
     let sql = `DELETE FROM expenses`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return db().prepare(sql).run(...params).changes;
+    return stmt(sql).run(...params).changes;
   },
   async countDocuments(filter: Filter | Record<string, unknown> = {}) {
     const where = buildWhere(filter);
     let sql = `SELECT COUNT(*) AS c FROM expenses`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return (db().prepare(sql).get(...params) as { c: number }).c;
+    return (stmt(sql).get(...params) as { c: number }).c;
   },
   async exists(filter: Filter | Record<string, unknown>) {
     const where = buildWhere(filter);
@@ -1115,7 +1159,7 @@ export const ExpenseModel = {
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
     sql += ` LIMIT 1`;
-    return Boolean(db().prepare(sql).get(...params));
+    return Boolean(stmt(sql).get(...params));
   },
   /**
    * Aggregation shim for the expense chart + summary endpoints. Rather than
@@ -1147,7 +1191,7 @@ export const ExpenseModel = {
         if (where.sql) sql += ` WHERE ${where.sql}`;
         sql += ` GROUP BY type`;
         if (sortDir === -1) sql += ` ORDER BY total DESC`;
-        const rows = db().prepare(sql).all(...params) as Record<string, unknown>[];
+        const rows = stmt(sql).all(...params) as Record<string, unknown>[];
         return rows.map((r) => ({ _id: r._id, total: r.total, count: r.count }));
       }
       if (groupId && typeof groupId === "object" && "$ifNull" in groupId) {
@@ -1157,7 +1201,7 @@ export const ExpenseModel = {
         if (where.sql) sql += ` WHERE ${where.sql}`;
         sql += ` GROUP BY _id`;
         if (sortDir === -1) sql += ` ORDER BY total DESC`;
-        const rows = db().prepare(sql).all(...params) as Record<string, unknown>[];
+        const rows = stmt(sql).all(...params) as Record<string, unknown>[];
         return rows.map((r) => ({ _id: r._id, total: r.total, count: r.count }));
       }
       if (groupId && typeof groupId === "object" && "$dateToString" in groupId) {
@@ -1168,7 +1212,7 @@ export const ExpenseModel = {
         sql += ` GROUP BY _id`;
         if (sortDir === 1) sql += ` ORDER BY _id ASC`;
         else if (sortDir === -1) sql += ` ORDER BY total DESC`;
-        const rows = db().prepare(sql).all(...params) as Record<string, unknown>[];
+        const rows = stmt(sql).all(...params) as Record<string, unknown>[];
         return rows.map((r) => ({ _id: r._id, total: r.total, count: r.count }));
       }
       if (groupId === null) {
@@ -1176,7 +1220,7 @@ export const ExpenseModel = {
         let sql = `SELECT SUM(amount) AS total, COUNT(*) AS count FROM expenses`;
         const params: SQLQueryBindings[] = [...where.params];
         if (where.sql) sql += ` WHERE ${where.sql}`;
-        const row = db().prepare(sql).get(...params) as { total: number | null; count: number };
+        const row = stmt(sql).get(...params) as { total: number | null; count: number };
         return [{ _id: null, total: row.total ?? 0, count: row.count }];
       }
     }
@@ -1218,11 +1262,11 @@ export const RecurringExpenseModel = {
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
     sql += ` LIMIT 1`;
-    const row = db().prepare(sql).get(...params) as Record<string, unknown> | null;
+    const row = stmt(sql).get(...params) as Record<string, unknown> | null;
     return row ? recurringHydrate(row) : null;
   },
   async findById(id: string) {
-    const row = db().prepare(`SELECT * FROM recurring_expenses WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM recurring_expenses WHERE id = ?`).get(id) as Record<string, unknown> | null;
     return row ? recurringHydrate(row) : null;
   },
   async create(data: Partial<IRecurringExpenseDocument>) {
@@ -1248,8 +1292,8 @@ export const RecurringExpenseModel = {
       }
     }
     const placeholders = cols.map(() => "?").join(", ");
-    db().prepare(`INSERT INTO recurring_expenses (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
-    const row = db().prepare(`SELECT * FROM recurring_expenses WHERE id = ?`).get(id) as Record<string, unknown>;
+    stmt(`INSERT INTO recurring_expenses (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
+    const row = stmt(`SELECT * FROM recurring_expenses WHERE id = ?`).get(id) as Record<string, unknown>;
     return recurringHydrate(row);
   },
   async findByIdAndUpdate(id: string, patch: Record<string, unknown>, opts = { new: true }) {
@@ -1269,16 +1313,16 @@ export const RecurringExpenseModel = {
         vals.push((val ?? null) as SQLQueryBindings);
       }
     }
-    const res = db().prepare(`UPDATE recurring_expenses SET ${cols.join(", ")} WHERE id = ?`).run(...vals, id);
+    const res = stmt(`UPDATE recurring_expenses SET ${cols.join(", ")} WHERE id = ?`).run(...vals, id);
     if (res.changes === 0) return null;
     if (!opts.new) return null;
-    const row = db().prepare(`SELECT * FROM recurring_expenses WHERE id = ?`).get(id) as Record<string, unknown>;
+    const row = stmt(`SELECT * FROM recurring_expenses WHERE id = ?`).get(id) as Record<string, unknown>;
     return row ? recurringHydrate(row) : null;
   },
   async findByIdAndDelete(id: string) {
-    const row = db().prepare(`SELECT * FROM recurring_expenses WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM recurring_expenses WHERE id = ?`).get(id) as Record<string, unknown> | null;
     if (!row) return null;
-    db().prepare(`DELETE FROM recurring_expenses WHERE id = ?`).run(id);
+    stmt(`DELETE FROM recurring_expenses WHERE id = ?`).run(id);
     return recurringHydrate(row);
   },
   async deleteMany(filter: Filter | Record<string, unknown>) {
@@ -1286,14 +1330,14 @@ export const RecurringExpenseModel = {
     let sql = `DELETE FROM recurring_expenses`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return db().prepare(sql).run(...params).changes;
+    return stmt(sql).run(...params).changes;
   },
   async countDocuments(filter: Filter | Record<string, unknown> = {}) {
     const where = buildWhere(filter);
     let sql = `SELECT COUNT(*) AS c FROM recurring_expenses`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return (db().prepare(sql).get(...params) as { c: number }).c;
+    return (stmt(sql).get(...params) as { c: number }).c;
   },
 };
 
@@ -1314,11 +1358,11 @@ export const ClockTodoModel = {
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
     sql += ` LIMIT 1`;
-    const row = db().prepare(sql).get(...params) as Record<string, unknown> | null;
+    const row = stmt(sql).get(...params) as Record<string, unknown> | null;
     return row ? clockTodoHydrate(row) : null;
   },
   async findById(id: string) {
-    const row = db().prepare(`SELECT * FROM clock_todos WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM clock_todos WHERE id = ?`).get(id) as Record<string, unknown> | null;
     return row ? clockTodoHydrate(row) : null;
   },
   async create(data: Partial<IClockTodoDocument>) {
@@ -1345,8 +1389,8 @@ export const ClockTodoModel = {
       }
     }
     const placeholders = cols.map(() => "?").join(", ");
-    db().prepare(`INSERT INTO clock_todos (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
-    const row = db().prepare(`SELECT * FROM clock_todos WHERE id = ?`).get(id) as Record<string, unknown>;
+    stmt(`INSERT INTO clock_todos (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
+    const row = stmt(`SELECT * FROM clock_todos WHERE id = ?`).get(id) as Record<string, unknown>;
     return clockTodoHydrate(row);
   },
   async findByIdAndUpdate(id: string, patch: Record<string, unknown>, opts = { new: true }) {
@@ -1366,16 +1410,16 @@ export const ClockTodoModel = {
         vals.push((val ?? null) as SQLQueryBindings);
       }
     }
-    const res = db().prepare(`UPDATE clock_todos SET ${cols.join(", ")} WHERE id = ?`).run(...vals, id);
+    const res = stmt(`UPDATE clock_todos SET ${cols.join(", ")} WHERE id = ?`).run(...vals, id);
     if (res.changes === 0) return null;
     if (!opts.new) return null;
-    const row = db().prepare(`SELECT * FROM clock_todos WHERE id = ?`).get(id) as Record<string, unknown>;
+    const row = stmt(`SELECT * FROM clock_todos WHERE id = ?`).get(id) as Record<string, unknown>;
     return row ? clockTodoHydrate(row) : null;
   },
   async findByIdAndDelete(id: string) {
-    const row = db().prepare(`SELECT * FROM clock_todos WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM clock_todos WHERE id = ?`).get(id) as Record<string, unknown> | null;
     if (!row) return null;
-    db().prepare(`DELETE FROM clock_todos WHERE id = ?`).run(id);
+    stmt(`DELETE FROM clock_todos WHERE id = ?`).run(id);
     return clockTodoHydrate(row);
   },
   async deleteMany(filter: Filter | Record<string, unknown>) {
@@ -1383,14 +1427,14 @@ export const ClockTodoModel = {
     let sql = `DELETE FROM clock_todos`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return db().prepare(sql).run(...params).changes;
+    return stmt(sql).run(...params).changes;
   },
   async countDocuments(filter: Filter | Record<string, unknown> = {}) {
     const where = buildWhere(filter);
     let sql = `SELECT COUNT(*) AS c FROM clock_todos`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return (db().prepare(sql).get(...params) as { c: number }).c;
+    return (stmt(sql).get(...params) as { c: number }).c;
   },
 };
 
@@ -1411,11 +1455,11 @@ export const BookmarkModel = {
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
     sql += ` LIMIT 1`;
-    const row = db().prepare(sql).get(...params) as Record<string, unknown> | null;
+    const row = stmt(sql).get(...params) as Record<string, unknown> | null;
     return row ? bookmarkHydrate(row) : null;
   },
   async findById(id: string) {
-    const row = db().prepare(`SELECT * FROM bookmarks WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM bookmarks WHERE id = ?`).get(id) as Record<string, unknown> | null;
     return row ? bookmarkHydrate(row) : null;
   },
   async create(data: Partial<IBookmarkDocument>) {
@@ -1433,8 +1477,8 @@ export const BookmarkModel = {
       }
     }
     const placeholders = cols.map(() => "?").join(", ");
-    db().prepare(`INSERT INTO bookmarks (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
-    const row = db().prepare(`SELECT * FROM bookmarks WHERE id = ?`).get(id) as Record<string, unknown>;
+    stmt(`INSERT INTO bookmarks (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
+    const row = stmt(`SELECT * FROM bookmarks WHERE id = ?`).get(id) as Record<string, unknown>;
     return bookmarkHydrate(row);
   },
   async findByIdAndUpdate(id: string, patch: Record<string, unknown>, opts = { new: true }) {
@@ -1451,16 +1495,16 @@ export const BookmarkModel = {
         vals.push((val ?? null) as SQLQueryBindings);
       }
     }
-    const res = db().prepare(`UPDATE bookmarks SET ${cols.join(", ")} WHERE id = ?`).run(...vals, id);
+    const res = stmt(`UPDATE bookmarks SET ${cols.join(", ")} WHERE id = ?`).run(...vals, id);
     if (res.changes === 0) return null;
     if (!opts.new) return null;
-    const row = db().prepare(`SELECT * FROM bookmarks WHERE id = ?`).get(id) as Record<string, unknown>;
+    const row = stmt(`SELECT * FROM bookmarks WHERE id = ?`).get(id) as Record<string, unknown>;
     return row ? bookmarkHydrate(row) : null;
   },
   async findByIdAndDelete(id: string) {
-    const row = db().prepare(`SELECT * FROM bookmarks WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM bookmarks WHERE id = ?`).get(id) as Record<string, unknown> | null;
     if (!row) return null;
-    db().prepare(`DELETE FROM bookmarks WHERE id = ?`).run(id);
+    stmt(`DELETE FROM bookmarks WHERE id = ?`).run(id);
     return bookmarkHydrate(row);
   },
   async deleteMany(filter: Filter | Record<string, unknown>) {
@@ -1468,14 +1512,14 @@ export const BookmarkModel = {
     let sql = `DELETE FROM bookmarks`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return db().prepare(sql).run(...params).changes;
+    return stmt(sql).run(...params).changes;
   },
   async countDocuments(filter: Filter | Record<string, unknown> = {}) {
     const where = buildWhere(filter);
     let sql = `SELECT COUNT(*) AS c FROM bookmarks`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return (db().prepare(sql).get(...params) as { c: number }).c;
+    return (stmt(sql).get(...params) as { c: number }).c;
   },
 };
 
@@ -1496,11 +1540,11 @@ export const CronJobModel = {
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
     sql += ` LIMIT 1`;
-    const row = db().prepare(sql).get(...params) as Record<string, unknown> | null;
+    const row = stmt(sql).get(...params) as Record<string, unknown> | null;
     return row ? cronJobHydrate(row) : null;
   },
   async findById(id: string) {
-    const row = db().prepare(`SELECT * FROM cron_jobs WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM cron_jobs WHERE id = ?`).get(id) as Record<string, unknown> | null;
     return row ? cronJobHydrate(row) : null;
   },
   async create(data: Partial<ICronJobDocument>) {
@@ -1528,8 +1572,8 @@ export const CronJobModel = {
       }
     }
     const placeholders = cols.map(() => "?").join(", ");
-    db().prepare(`INSERT INTO cron_jobs (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
-    const row = db().prepare(`SELECT * FROM cron_jobs WHERE id = ?`).get(id) as Record<string, unknown>;
+    stmt(`INSERT INTO cron_jobs (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
+    const row = stmt(`SELECT * FROM cron_jobs WHERE id = ?`).get(id) as Record<string, unknown>;
     return cronJobHydrate(row);
   },
   async findByIdAndUpdate(id: string, patch: Record<string, unknown>, opts = { new: true }) {
@@ -1549,16 +1593,16 @@ export const CronJobModel = {
         vals.push((val ?? null) as SQLQueryBindings);
       }
     }
-    const res = db().prepare(`UPDATE cron_jobs SET ${cols.join(", ")} WHERE id = ?`).run(...vals, id);
+    const res = stmt(`UPDATE cron_jobs SET ${cols.join(", ")} WHERE id = ?`).run(...vals, id);
     if (res.changes === 0) return null;
     if (!opts.new) return null;
-    const row = db().prepare(`SELECT * FROM cron_jobs WHERE id = ?`).get(id) as Record<string, unknown>;
+    const row = stmt(`SELECT * FROM cron_jobs WHERE id = ?`).get(id) as Record<string, unknown>;
     return row ? cronJobHydrate(row) : null;
   },
   async findByIdAndDelete(id: string) {
-    const row = db().prepare(`SELECT * FROM cron_jobs WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM cron_jobs WHERE id = ?`).get(id) as Record<string, unknown> | null;
     if (!row) return null;
-    db().prepare(`DELETE FROM cron_jobs WHERE id = ?`).run(id);
+    stmt(`DELETE FROM cron_jobs WHERE id = ?`).run(id);
     return cronJobHydrate(row);
   },
   async deleteMany(filter: Filter | Record<string, unknown>) {
@@ -1566,14 +1610,14 @@ export const CronJobModel = {
     let sql = `DELETE FROM cron_jobs`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return db().prepare(sql).run(...params).changes;
+    return stmt(sql).run(...params).changes;
   },
   async countDocuments(filter: Filter | Record<string, unknown> = {}) {
     const where = buildWhere(filter);
     let sql = `SELECT COUNT(*) AS c FROM cron_jobs`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return (db().prepare(sql).get(...params) as { c: number }).c;
+    return (stmt(sql).get(...params) as { c: number }).c;
   },
   /** Mongoose-compatible: `new CronJobModel(data)` + `.save()` + `.toJSON()`. */
   of(data: Partial<ICronJobDocument>): ICronJobDocument {
@@ -1631,11 +1675,11 @@ export const CronJobLogModel = {
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
     sql += ` LIMIT 1`;
-    const row = db().prepare(sql).get(...params) as Record<string, unknown> | null;
+    const row = stmt(sql).get(...params) as Record<string, unknown> | null;
     return row ? cronJobLogHydrate(row) : null;
   },
   async findById(id: string) {
-    const row = db().prepare(`SELECT * FROM cron_job_logs WHERE id = ?`).get(id) as Record<string, unknown> | null;
+    const row = stmt(`SELECT * FROM cron_job_logs WHERE id = ?`).get(id) as Record<string, unknown> | null;
     return row ? cronJobLogHydrate(row) : null;
   },
   async create(data: Partial<ICronJobLogDocument>) {
@@ -1660,8 +1704,8 @@ export const CronJobLogModel = {
       }
     }
     const placeholders = cols.map(() => "?").join(", ");
-    db().prepare(`INSERT INTO cron_job_logs (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
-    const row = db().prepare(`SELECT * FROM cron_job_logs WHERE id = ?`).get(id) as Record<string, unknown>;
+    stmt(`INSERT INTO cron_job_logs (${cols.join(", ")}) VALUES (${placeholders})`).run(...vals);
+    const row = stmt(`SELECT * FROM cron_job_logs WHERE id = ?`).get(id) as Record<string, unknown>;
     return cronJobLogHydrate(row);
   },
   async deleteMany(filter: Filter | Record<string, unknown>) {
@@ -1669,13 +1713,13 @@ export const CronJobLogModel = {
     let sql = `DELETE FROM cron_job_logs`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return db().prepare(sql).run(...params).changes;
+    return stmt(sql).run(...params).changes;
   },
   async countDocuments(filter: Filter | Record<string, unknown> = {}) {
     const where = buildWhere(filter);
     let sql = `SELECT COUNT(*) AS c FROM cron_job_logs`;
     const params: SQLQueryBindings[] = [...where.params];
     if (where.sql) sql += ` WHERE ${where.sql}`;
-    return (db().prepare(sql).get(...params) as { c: number }).c;
+    return (stmt(sql).get(...params) as { c: number }).c;
   },
 };

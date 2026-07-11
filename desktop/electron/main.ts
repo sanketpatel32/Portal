@@ -24,6 +24,22 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 let mainWindow: BrowserWindow | null = null;
 let serverManager: ServerManager | null = null;
 
+// Single-instance lock: two app instances would both open the same SQLite
+// file (same userData dir) and cause lock contention / sporadic write
+// failures. The second instance quits; the first focuses its window.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+	app.quit();
+} else {
+	app.on("second-instance", () => {
+		// Someone tried to run a second instance — focus our window instead.
+		if (mainWindow) {
+			if (mainWindow.isMinimized()) mainWindow.restore();
+			mainWindow.focus();
+		}
+	});
+}
+
 function logToFile(line: string): void {
 	try {
 		const dir = app.getPath("userData");

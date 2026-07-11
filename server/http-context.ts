@@ -21,15 +21,21 @@ const SECURITY_HEADERS = {
   "Strict-Transport-Security": "max-age=15552000; includeSubDomains",
 };
 
+// Constant CORS + content-type headers — only the Origin varies per request.
+// Precomputed once and spread into each response to avoid per-request allocation.
+const BASE_RESPONSE_HEADERS = {
+  ...SECURITY_HEADERS,
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-MongoDB-URI, X-SQL-Connection-String",
+  "Content-Type": "application/json",
+} as const;
+
 export const getResponseHeaders = (req: Request) => {
   const origin = req.headers.get("origin");
   const allowedOrigin = isOriginAllowed(origin) ? (origin || "") : "";
   return {
-    ...SECURITY_HEADERS,
+    ...BASE_RESPONSE_HEADERS,
     "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-MongoDB-URI, X-SQL-Connection-String",
-    "Content-Type": "application/json",
   };
 };
 

@@ -1,5 +1,5 @@
 import type { IRecurringExpenseDocument } from "./db";
-import { ExpenseModel, RecurringExpenseModel } from "./db";
+import { ExpenseModel, RecurringExpenseModel, getDb } from "./db";
 
 function monthBounds(year: number, monthIndex: number) {
   const start = new Date(year, monthIndex, 1, 0, 0, 0, 0);
@@ -54,22 +54,35 @@ export async function syncRecurringExpenses(): Promise<number> {
   const { start, end } = monthBounds(now.getFullYear(), now.getMonth());
   let created = 0;
 
+  // First pass: deactivate expired templates, filter to those in-window.
+  const inWindowTemplates: IRecurringExpenseDocument[] = [];
   for (const template of templates) {
     if (recurringWindowEnded(template, now)) {
       template.active = false;
       await template.save();
       continue;
     }
-
-    if (!isMonthInRecurringWindow(template, now.getFullYear(), now.getMonth())) {
-      continue;
+    if (isMonthInRecurringWindow(template, now.getFullYear(), now.getMonth())) {
+      inWindowTemplates.push(template);
     }
+  }
 
-    const exists = await ExpenseModel.exists({
-      recurringId: template.id,
-      date: { $gte: start, $lte: end },
-    });
-    if (exists) continue;
+  if (inWindowTemplates.length === 0) return 0;
+
+  // Batch existence check: one query instead of N per-template probes.
+  // Uses the idx_expenses_recurring_date composite index.
+  const templateIds = inWindowTemplates.map((t) => t.id);
+  const placeholders = templateIds.map(() => "?").join(",");
+  const rows = getDb()
+    .prepare(
+      `SELECT DISTINCT recurring_id FROM expenses
+       WHERE date BETWEEN ? AND ? AND recurring_id IN (${placeholders})`,
+    )
+    .all(start.toISOString(), end.toISOString(), ...templateIds) as { recurring_id: string }[];
+  const alreadyMaterialized = new Set(rows.map((r) => r.recurring_id));
+
+  for (const template of inWindowTemplates) {
+    if (alreadyMaterialized.has(template.id)) continue;
 
     await ExpenseModel.create({
       amount: template.amount,

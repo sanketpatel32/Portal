@@ -16,6 +16,10 @@ export class ServerManager {
 	private logPath: string = "";
 	private onLog: ((line: string) => void) | null = null;
 	private isShuttingDown = false;
+	private hasStarted = false;
+	private restartAttempts = 0;
+	private static readonly MAX_RESTART_ATTEMPTS = 3;
+	private static readonly RESTART_DELAY_MS = 2000;
 
 	get url(): string {
 		return `http://127.0.0.1:${this.port}`;
@@ -59,12 +63,73 @@ export class ServerManager {
 		this.child.on("exit", (code, signal) => {
 			if (this.onLog) this.onLog(`[desktop] server exited code=${code} signal=${signal}`);
 			this.child = null;
-			if (!this.isShuttingDown && code !== 0) {
-				if (this.onLog) this.onLog("[desktop] server crashed — see logs in the app user data folder");
+			// Only restart if the server had successfully started at least once
+			// (i.e. this is a post-startup crash, not a failed initial boot).
+			if (!this.isShuttingDown && this.hasStarted && code !== 0) {
+				this.attemptRestart();
 			}
 		});
 
 		await this.waitForReady();
+		this.hasStarted = true;
+	}
+
+	/**
+	 * Retry spawning the server after a crash. Bounded to MAX_RESTART_ATTEMPTS
+	 * with RESTART_DELAY_MS backoff so we don't spin in a tight loop. Without
+	 * this, a post-startup server crash leaves the window pointing at a dead
+	 * port — every API call silently fails and the user sees a blank page.
+	 */
+	private async attemptRestart(): Promise<void> {
+		if (this.restartAttempts >= ServerManager.MAX_RESTART_ATTEMPTS) {
+			if (this.onLog) {
+				this.onLog(
+					`[desktop] server crashed — gave up after ${ServerManager.MAX_RESTART_ATTEMPTS} restart attempts. See logs in the app user data folder.`,
+				);
+			}
+			return;
+		}
+		this.restartAttempts++;
+		if (this.onLog) {
+			this.onLog(
+				`[desktop] server crashed — restarting (attempt ${this.restartAttempts}/${ServerManager.MAX_RESTART_ATTEMPTS})...`,
+			);
+		}
+		await new Promise((r) => setTimeout(r, ServerManager.RESTART_DELAY_MS));
+		if (this.isShuttingDown) return;
+
+		try {
+			// Re-spawn on the SAME port so the BrowserWindow URL stays valid.
+			this.port = await findFreePort();
+			const { bin, args, env } = this.resolveLaunch();
+			this.child = spawn(bin, args, {
+				env,
+				stdio: ["ignore", "pipe", "pipe"],
+				windowsHide: true,
+			});
+			this.child.stdout?.on("data", (chunk) => this.handleOutput(chunk));
+			this.child.stderr?.on("data", (chunk) => this.handleOutput(chunk));
+			this.child.on("exit", (code, signal) => {
+				if (this.onLog) this.onLog(`[desktop] server exited code=${code} signal=${signal}`);
+				this.child = null;
+				if (!this.isShuttingDown && this.hasStarted && code !== 0) {
+					this.attemptRestart();
+				}
+			});
+			this.child.on("error", (err) => {
+				if (this.onLog) this.onLog(`[desktop] server spawn error: ${err.message}`);
+			});
+			await this.waitForReady();
+			if (this.onLog) this.onLog("[desktop] server restarted successfully");
+			// Reset the attempt counter on a successful restart.
+			this.restartAttempts = 0;
+		} catch (err) {
+			if (this.onLog) {
+				this.onLog(`[desktop] restart failed: ${err instanceof Error ? err.message : String(err)}`);
+			}
+			// Recursive retry until MAX_RESTART_ATTEMPTS is hit.
+			this.attemptRestart();
+		}
 	}
 
 	private handleOutput(chunk: Buffer | string): void {

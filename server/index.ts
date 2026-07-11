@@ -1,4 +1,4 @@
-import { connectDB, TaskModel } from "./db";
+import { connectDB, closeDB, TaskModel } from "./db";
 import { env } from "./env";
 import { startScheduler, stopScheduler } from "./scheduler";
 import {
@@ -283,12 +283,8 @@ const server = Bun.serve({
         console.error("Failed to load initial socket state:", err);
       });
 
-      getMetrics().then(metrics => {
-        server.publish("metrics", JSON.stringify({
-          type: "metrics",
-          data: metrics,
-        }));
-      });
+      // No metrics broadcast here — the 2.5s interval (below) already pushes
+      // fresh metrics to all subscribers, so a per-connect publish is redundant.
     },
     message(ws, message) {
       try {
@@ -318,13 +314,8 @@ const server = Bun.serve({
       // corrupt the metrics broadcast guard.
       connectionState.activeConnections = Math.max(0, connectionState.activeConnections - 1);
       console.log(`WebSocket client disconnected. Connections: ${connectionState.activeConnections}`);
-
-      getMetrics().then(metrics => {
-        server.publish("metrics", JSON.stringify({
-          type: "metrics",
-          data: metrics,
-        }));
-      });
+      // No metrics broadcast here — the 2.5s interval reflects the updated
+      // connection count within 2.5s. Avoids an extra getMetrics() per disconnect.
     },
   },
 });
@@ -372,6 +363,7 @@ function shutdown(signal: string) {
   server.stop(true, 2000); // stop accepting new conns, wait ≤2s for active ones
   clearInterval(metricsIntervalId); // stop the metrics broadcast loop
   stopScheduler();
+  closeDB(); // checkpoint WAL + release the SQLite file handle
 
   // Exit promptly once connections drain; the timeout above is the backstop.
   setTimeout(() => process.exit(0), 2500).unref();

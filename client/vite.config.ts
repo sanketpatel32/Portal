@@ -16,15 +16,24 @@ export default defineConfig({
     // Subapps are React.lazy code-split, so each route chunk is well under the
     // default 500KB hint. The only "large" chunk is the shared index (React +
     // framework shell), which is stable and cacheable across app updates.
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
-        // Pin React + ReactDOM into its own long-term-cacheable chunk so that
-        // app-only changes don't bust the browser cache for the framework.
+        // Split heavy third-party libs into their own long-term-cacheable chunks
+        // so that app-only changes don't bust the browser cache for vendors.
         manualChunks(id) {
           if (id.includes("node_modules")) {
             if (id.includes("react-dom") || /node_modules[\\/]react[\\/]/.test(id)) {
               return "react-vendor";
+            }
+            if (id.includes("@dnd-kit")) {
+              return "dnd-vendor";
+            }
+            if (id.includes("zod")) {
+              return "zod-vendor";
+            }
+            if (id.includes("react-day-picker") || id.includes("radix-ui")) {
+              return "calendar-vendor";
             }
           }
         },
