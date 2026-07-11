@@ -5,8 +5,9 @@ import { app } from "electron";
 /**
  * Ensure the user's data directory has a `.env` file the bundled server can
  * read. We don't ship secrets in the app — instead, the first launch copies a
- * template so the user can fill in MONGODB_URI / PIN / etc. with their own
- * values (mirroring the web deployment workflow).
+ * template so the user can fill in PIN / optional API keys with their own
+ * values. The app's own data lives in SQLite (auto-created in userData), so
+ * no database configuration is needed.
  *
  * The file is read by the server's existing env loader, which looks for
  * `server/.env` relative to its CWD. We point the server's CWD at the userData
