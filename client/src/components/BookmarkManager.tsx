@@ -77,7 +77,7 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
   const [submitting, setSubmitting] = useState(false);
   const urlInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchBookmarks = useCallback(async () => {
+  const fetchBookmarks = useCallback(async (signal?: AbortSignal) => {
     setError(null);
     try {
       const params = new URLSearchParams();
@@ -85,22 +85,25 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
       if (activeTag) params.set("tag", activeTag);
       if (favoritesOnly) params.set("favorite", "true");
 
-      const res = await fetch(`${env.VITE_API_URL}/api/bookmarks?${params}`, { headers: apiHeaders });
+      const res = await fetch(`${env.VITE_API_URL}/api/bookmarks?${params}`, { headers: apiHeaders, signal });
       if (!res.ok) {
         setError(await parseApiError(res));
         return;
       }
       const data = await res.json();
       setBookmarks(data.bookmarks ?? []);
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError("Could not reach the server. Check your connection.");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [apiHeaders, searchQuery, activeTag, favoritesOnly]);
 
   useEffect(() => {
-    void fetchBookmarks();
+    const ac = new AbortController();
+    void fetchBookmarks(ac.signal);
+    return () => ac.abort();
   }, [fetchBookmarks]);
 
   // Debounced search input

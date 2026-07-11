@@ -1015,9 +1015,15 @@ function attachSaveMutate<T>(row: T, config: ModelConfig): T {
         vals.push((val ?? null) as SQLQueryBindings);
       }
     }
-    db()
-      .prepare(`UPDATE ${config.table} SET ${cols.join(", ")} WHERE id = ?`)
-      .run(...vals, rec.id as SQLQueryBindings);
+    const res = stmt(`UPDATE ${config.table} SET ${cols.join(", ")} WHERE id = ?`).run(
+      ...vals,
+      rec.id as SQLQueryBindings,
+    );
+    // If 0 rows changed, the row was deleted between findById and save().
+    // Throw so callers can return 404 instead of silently "succeeding".
+    if (res.changes === 0) {
+      throw new Error(`${config.table} not found`);
+    }
     return row;
   };
   rec.save = save;
@@ -1644,9 +1650,13 @@ export const CronJobModel = {
         }
         cols.push("updated_at = ?");
         vals.push(now);
-        db()
-          .prepare(`UPDATE cron_jobs SET ${cols.join(", ")} WHERE id = ?`)
-          .run(...vals, buffered.id as SQLQueryBindings);
+        const res = stmt(`UPDATE cron_jobs SET ${cols.join(", ")} WHERE id = ?`).run(
+          ...vals,
+          buffered.id as SQLQueryBindings,
+        );
+        if (res.changes === 0) {
+          throw new Error("cron_jobs not found");
+        }
         return fakeRow;
       }
       // Fresh insert.

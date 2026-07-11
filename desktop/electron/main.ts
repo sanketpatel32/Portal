@@ -124,6 +124,36 @@ function registerIpc(): void {
 	});
 }
 
+/**
+ * Small inline splash screen shown while the Bun server boots. The server
+ * takes 1-3s to start; without a splash the user sees a black window.
+ * This loads instantly from a data: URL — no file I/O, no network.
+ */
+const SPLASH_HTML = `data:text/html,${encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e4e4e7;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:24px}
+.spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.1);border-top-color:#6366f1;border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+p{font-size:14px;color:#71717a;letter-spacing:0.05em}
+</style></head><body><div class="spinner"></div><p>Starting AuraFlow…</p></body></html>`)}`;
+
+let splashWindow: BrowserWindow | null = null;
+
+function createSplash(): void {
+	splashWindow = new BrowserWindow({
+		width: 400,
+		height: 300,
+		frame: false,
+		transparent: true,
+		resizable: false,
+		center: true,
+		show: true,
+		alwaysOnTop: true,
+		webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+	});
+	splashWindow.loadURL(SPLASH_HTML);
+}
+
 async function bootstrap(): Promise<void> {
 	const { envPath, ok } = ensureUserEnv();
 	logToFile(`env at ${envPath} (template=${!ok})`);
@@ -133,21 +163,25 @@ async function bootstrap(): Promise<void> {
 		onLog: (line) => logToFile(line),
 	});
 
-	// The user's .env lives in userData/.env. We pass its values into the
-	// server's environment via ServerManager (no CWD trickery, no symlinks),
-	// so the server's own loader sees PORT / MONGODB_URI / PIN / etc. exactly
-	// as if a real deployment had set them. Edit the .env file and restart to
-	// apply changes.
-
 	registerIpc();
 	createWindow();
+
+	// Close the splash once the main window is ready to show.
+	if (splashWindow && !splashWindow.isDestroyed()) {
+		splashWindow.close();
+		splashWindow = null;
+	}
 }
 
 app.on("ready", () => {
+	createSplash();
 	bootstrap().catch((err: unknown) => {
 		const message = err instanceof Error ? err.message : String(err);
 		logToFile(`bootstrap failed: ${message}`);
 		console.error("[desktop] bootstrap failed:", err);
+		if (splashWindow && !splashWindow.isDestroyed()) {
+			splashWindow.close();
+		}
 		void dialog.showErrorBox(
 			"AuraFlow failed to start",
 			`${message}\n\nLogs: ${app.getPath("userData")}\\desktop.log`,

@@ -126,7 +126,7 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
     return params;
   }, [selectedMonth, typeFilter, categoryFilter, searchQuery]);
 
-  const fetchData = async () => {
+  const fetchData = async (signal?: AbortSignal) => {
     setChartLoading(true);
     try {
       const params = buildQuery();
@@ -134,10 +134,10 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
       chartParams.set("groupBy", chartGroupBy);
 
       const [expRes, sumRes, chartRes, recRes] = await Promise.all([
-        fetch(`${env.VITE_API_URL}/api/expenses?${params}`, { headers: apiHeaders }),
-        fetch(`${env.VITE_API_URL}/api/expenses/summary?${params}`, { headers: apiHeaders }),
-        fetch(`${env.VITE_API_URL}/api/expenses/chart?${chartParams}`, { headers: apiHeaders }),
-        fetch(`${env.VITE_API_URL}/api/expenses/recurring`, { headers: apiHeaders }),
+        fetch(`${env.VITE_API_URL}/api/expenses?${params}`, { headers: apiHeaders, signal }),
+        fetch(`${env.VITE_API_URL}/api/expenses/summary?${params}`, { headers: apiHeaders, signal }),
+        fetch(`${env.VITE_API_URL}/api/expenses/chart?${chartParams}`, { headers: apiHeaders, signal }),
+        fetch(`${env.VITE_API_URL}/api/expenses/recurring`, { headers: apiHeaders, signal }),
       ]);
 
       if (expRes.ok) {
@@ -153,16 +153,22 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
         const data = await recRes.json();
         setRecurring(data.recurring || []);
       }
-    } catch {
+    } catch (err) {
+      // Ignore abort errors — the caller is tearing down.
+      if (err instanceof DOMException && err.name === "AbortError") return;
       // offline
     } finally {
-      setLoading(false);
-      setChartLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+        setChartLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    void Promise.resolve().then(() => fetchData());
+    const ac = new AbortController();
+    void fetchData(ac.signal);
+    return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch when filters/month change
   }, [selectedMonth, typeFilter, categoryFilter, chartGroupBy, searchQuery, token]);
   useEffect(() => { formAmountRef.current?.focus(); }, []);

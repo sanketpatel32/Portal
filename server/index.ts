@@ -102,22 +102,49 @@ async function gzipFile(absPath: string, file: Bun.BunFile, memoize: boolean): P
   return compressed;
 }
 
-/** Serve the SPA entry HTML (no-cache, gzip when accepted). */
-function serveSpaIndex(req: Request): Response {
+/**
+ * Serve the SPA entry HTML (no-cache, gzip when accepted).
+ *
+ * The gzipped bytes are memoized keyed by the file's lastModified timestamp —
+ * if index.html hasn't changed since last request, we reuse the compressed
+ * payload instead of re-compressing on every request. When the file changes
+ * (new deploy), the key changes and a fresh compression runs.
+ */
+const indexGzipCache = new Map<number, Uint8Array>();
+
+async function serveSpaIndex(req: Request): Promise<Response> {
   const file = Bun.file(INDEX_HTML);
+  const lastModified = file.lastModified;
+
+  // ETag: let the browser skip the body entirely if it hasn't changed.
+  const etag = `W/"${lastModified}-${file.size}"`;
+  if (req.headers.get("if-none-match") === etag) {
+    return new Response(null, { status: 304, headers: { ETag: etag } });
+  }
+
   if (clientAcceptsGzip(req)) {
-    // index.html is small and changes per-deploy, so compress inline (no memo).
-    return new Response(file.stream().pipeThrough(new CompressionStream("gzip")), {
+    let compressed = indexGzipCache.get(lastModified);
+    if (!compressed) {
+      compressed = Bun.gzipSync(new Uint8Array(await file.arrayBuffer())) as Uint8Array;
+      indexGzipCache.clear(); // keep only the latest version
+      indexGzipCache.set(lastModified, compressed);
+    }
+    return new Response(compressed, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Content-Encoding": "gzip",
         "Cache-Control": "no-cache",
+        ETag: etag,
         Vary: "Accept-Encoding",
       },
     });
   }
   return new Response(file, {
-    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" },
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache",
+      ETag: etag,
+    },
   });
 }
 
@@ -156,6 +183,36 @@ async function serveStaticAsset(url: URL, req: Request): Promise<Response | null
     const cacheControl = isHashedAsset
       ? "public, max-age=31536000, immutable"
       : "no-cache";
+
+    // For non-hashed assets (favicon, icons.svg), support ETag/304 so the
+    // browser can skip re-downloading unchanged files. Hashed assets are
+    // immutable with a 1-year cache so ETag adds nothing.
+    if (!isHashedAsset) {
+      const etag = `W/"${file.lastModified}-${file.size}"`;
+      if (req.headers.get("if-none-match") === etag) {
+        return new Response(null, { status: 304, headers: { ETag: etag } });
+      }
+      const etagHeaders: Record<string, string> = { ETag: etag };
+      if (GZIP_EXTENSIONS.has(ext) && clientAcceptsGzip(req)) {
+        const compressed = await gzipFile(requested, file, false);
+        return new Response(compressed, {
+          headers: {
+            "Content-Type": contentType,
+            "Content-Encoding": "gzip",
+            "Cache-Control": cacheControl,
+            ...etagHeaders,
+            Vary: "Accept-Encoding",
+          },
+        });
+      }
+      return new Response(file, {
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": cacheControl,
+          ...etagHeaders,
+        },
+      });
+    }
 
     // Gzip compressible text assets when the client accepts it. Hashed assets
     // are immutable so the compressed bytes are memoized for the process life.
@@ -254,7 +311,7 @@ const server = Bun.serve({
       const asset = await serveStaticAsset(url, req);
       if (asset) return asset;
       // Unknown path → SPA entry so client-side routing can take over.
-      return serveSpaIndex(req);
+      return await serveSpaIndex(req);
     }
 
     return jsonResponse(req, { error: "Endpoint not found" }, 404);

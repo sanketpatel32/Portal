@@ -17,6 +17,7 @@ export class ServerManager {
 	private onLog: ((line: string) => void) | null = null;
 	private isShuttingDown = false;
 	private hasStarted = false;
+	private spawnFailed = false;
 	private restartAttempts = 0;
 	private static readonly MAX_RESTART_ATTEMPTS = 3;
 	private static readonly RESTART_DELAY_MS = 2000;
@@ -58,6 +59,9 @@ export class ServerManager {
 
 		this.child.on("error", (err) => {
 			if (this.onLog) this.onLog(`[desktop] server spawn error: ${err.message}`);
+			// If the binary doesn't exist (ENOENT), fail fast instead of
+			// waiting 15s for the poll loop to time out.
+			this.spawnFailed = true;
 		});
 
 		this.child.on("exit", (code, signal) => {
@@ -198,6 +202,13 @@ export class ServerManager {
 		const deadline = Date.now() + 15_000;
 		const url = `${this.url}/api/verify-token`;
 		while (Date.now() < deadline) {
+			// If spawn() itself failed (ENOENT — binary/bun not found), don't
+			// waste 15s polling. Throw immediately with an actionable message.
+			if (this.spawnFailed) {
+				throw new Error(
+					"Server binary not found and `bun` is not installed. Run `bun run setup` in the desktop/ folder or install Bun from https://bun.sh",
+				);
+			}
 			if (!this.child) throw new Error("Server exited before becoming ready");
 			try {
 				const res = await fetch(url);

@@ -145,48 +145,74 @@ export function CronScheduler({ token, onBack }: Props) {
   selectedJobRef.current = selectedJob;
 
   // WebSockets synchronization — depends only on [token], not selectedJob.
+  // Includes automatic reconnect with exponential backoff so a server restart
+  // or network blip doesn't silently kill live cron updates.
   useEffect(() => {
-    const wsUrl = `${env.VITE_WS_URL}?token=${encodeURIComponent(token)}`;
-    const socket = new WebSocket(wsUrl);
+    let socket: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectAttempts = 0;
+    let isClosedByCleanup = false;
 
-    socket.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === "cron_job_executed") {
-          const run = payload.data;
-          setJobs((prevJobs) =>
-            prevJobs.map((j) =>
-              j.id === run.jobId
-                ? {
-                    ...j,
-                    lastRun: new Date(run.timestamp).toISOString(),
-                    nextRun: new Date(run.nextRun).toISOString(),
-                    lastStatus: run.lastStatus,
-                  }
-                : j
-            )
-          );
+    const connect = () => {
+      const wsUrl = `${env.VITE_WS_URL}?token=${encodeURIComponent(token)}`;
+      socket = new WebSocket(wsUrl);
 
-          if (selectedJobRef.current && selectedJobRef.current.id === run.jobId) {
-            fetchLogs(run.jobId);
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === "cron_job_executed") {
+            const run = payload.data;
+            setJobs((prevJobs) =>
+              prevJobs.map((j) =>
+                j.id === run.jobId
+                  ? {
+                      ...j,
+                      lastRun: new Date(run.timestamp).toISOString(),
+                      nextRun: new Date(run.nextRun).toISOString(),
+                      lastStatus: run.lastStatus,
+                    }
+                  : j
+              )
+            );
+
+            if (selectedJobRef.current && selectedJobRef.current.id === run.jobId) {
+              fetchLogs(run.jobId);
+            }
+          } else if (
+            payload.type === "cron_job_created" ||
+            payload.type === "cron_job_updated" ||
+            payload.type === "cron_job_deleted"
+          ) {
+            fetch(`${env.VITE_API_URL}/api/cron/jobs`, { headers: apiHeaders })
+              .then((r) => r.json())
+              .then((data) => setJobs(data))
+              .catch((e) => console.error(e));
           }
-        } else if (
-          payload.type === "cron_job_created" ||
-          payload.type === "cron_job_updated" ||
-          payload.type === "cron_job_deleted"
-        ) {
-          fetch(`${env.VITE_API_URL}/api/cron/jobs`, { headers: apiHeaders })
-            .then((r) => r.json())
-            .then((data) => setJobs(data))
-            .catch((e) => console.error(e));
+        } catch (err) {
+          console.error("Failed to parse WS message:", err);
         }
-      } catch (err) {
-        console.error("Failed to parse WS message:", err);
-      }
+      };
+
+      socket.onclose = () => {
+        if (isClosedByCleanup) return;
+        // Reconnect with exponential backoff: 1s, 2s, 4s, 8s, capped at 15s.
+        const delay = Math.min(1000 * 2 ** reconnectAttempts, 15000);
+        reconnectAttempts++;
+        console.warn(`[CronScheduler] WebSocket closed — reconnecting in ${delay}ms`);
+        reconnectTimer = setTimeout(connect, delay);
+      };
+
+      socket.onerror = () => {
+        // onclose will fire after onerror; the reconnect logic lives there.
+      };
     };
 
+    connect();
+
     return () => {
-      socket.close();
+      isClosedByCleanup = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      socket?.close();
     };
   }, [token]);
 
