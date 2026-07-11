@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { env } from "@/env";
 import { usePersistentState } from "@/hooks/usePersistentState";
+import { useAuthHeaders } from "@/hooks/useAuthHeaders";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
   Loader2,
   Plus,
@@ -96,8 +98,7 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
   const [listPage, setListPage] = useState(1);
   const LIST_PAGE_SIZE = 8;
   const [searchInput, setSearchInput] = usePersistentState("auraflow_expense_searchInput", "");
-  const [searchQuery, setSearchQuery] = useState("");
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchQuery = useDebouncedValue(searchInput, 300);
 
   const [formAmount, setFormAmount] = usePersistentState("auraflow_expense_formAmount", "");
   const [formDesc, setFormDesc] = usePersistentState("auraflow_expense_formDesc", "");
@@ -114,7 +115,7 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
   const cmdInputRef = useRef<HTMLInputElement>(null);
   const formAmountRef = useRef<HTMLInputElement>(null);
 
-  const apiHeaders = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const apiHeaders = useAuthHeaders(token);
 
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -177,20 +178,13 @@ export function ExpenseTracker({ token, onBack, playBeep }: Props) {
 
   const handleSearchChange = (value: string) => {
     setSearchInput(value);
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => {
-      setSearchQuery(value);
-      setListPage(1);
-    }, 300);
+    setListPage(1);
   };
 
   const clearSearch = () => {
     setSearchInput("");
-    setSearchQuery("");
     setListPage(1);
   };
-
-  useEffect(() => () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); }, []);
 
   const resetFormDate = () => {
     setFormDate(toLocalDateInput(new Date()));

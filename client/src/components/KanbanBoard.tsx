@@ -15,6 +15,7 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Eraser } from "lucide-react";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { ModuleShell } from "./ui/ModuleShell";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { AppButton } from "./ui/AppButton";
 import {
@@ -99,14 +100,16 @@ export const KanbanBoard: React.FC<Props> = ({ onBack, playBeep: beep }) => {
 		setTasks((prev) => prev.filter((t) => t.id !== id));
 	};
 
+	const [confirmClear, setConfirmClear] = useState(false);
+
 	const clearCompleted = () => {
 		if (byStatus.completed.length === 0) return;
-		if (
-			!window.confirm(`Delete ${byStatus.completed.length} completed task(s)?`)
-		) {
-			return;
-		}
+		setConfirmClear(true);
+	};
+
+	const performClearCompleted = () => {
 		setTasks((prev) => prev.filter((t) => t.status !== "completed"));
+		setConfirmClear(false);
 	};
 
 	// --- DnD helpers --------------------------------------------------------
@@ -237,6 +240,15 @@ export const KanbanBoard: React.FC<Props> = ({ onBack, playBeep: beep }) => {
 					{activeTask ? <KanbanCard task={activeTask} dragOverlay /> : null}
 				</DragOverlay>
 			</DndContext>
+			<ConfirmDialog
+				open={confirmClear}
+				title="Clear completed tasks"
+				message={`Delete ${byStatus.completed.length} completed task(s)?`}
+				confirmLabel="Delete"
+				variant="danger"
+				onCancel={() => setConfirmClear(false)}
+				onConfirm={performClearCompleted}
+			/>
 		</ModuleShell>
 	);
 };

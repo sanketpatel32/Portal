@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { playBeep } from "@/lib/audio";
 import { cn } from "@/lib/utils";
 
-type AppButtonVariant = "primary" | "ghost" | "ghostSm" | "icon" | "toolbar";
+type AppButtonVariant = "primary" | "ghost" | "ghostSm" | "icon" | "toolbar" | "danger";
 
 interface AppButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: AppButtonVariant;
@@ -24,6 +24,8 @@ const variantClass: Record<AppButtonVariant, string> = {
     "border border-white/10 p-2.5 min-h-[44px] min-w-[44px] text-zinc-500 hover:border-white/30 hover:text-white inline-flex items-center justify-center",
   toolbar:
     "border border-white/10 px-3 py-2.5 min-h-[44px] font-mono text-[13px] uppercase tracking-[0.2em] text-zinc-500 hover:border-white/30 hover:text-white inline-flex items-center justify-center gap-2",
+  danger:
+    "border border-red-500/30 bg-red-500/10 px-4 py-3 font-mono text-[13px] uppercase tracking-[0.2em] text-red-400 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-40",
 };
 
 export const AppButton = React.forwardRef<HTMLButtonElement, AppButtonProps>(

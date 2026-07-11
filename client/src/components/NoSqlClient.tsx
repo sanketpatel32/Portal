@@ -23,6 +23,7 @@ import { EmptyState } from "./ui/EmptyState";
 import { Pagination } from "./ui/Pagination";
 import { CopyButton } from "./ui/CopyButton";
 import { ModuleShell } from "./ui/ModuleShell";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { AppButton } from "./ui/AppButton";
 import { AppInput } from "./ui/AppInput";
@@ -427,14 +428,11 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
     }
   };
 
+  const [pendingDocDelete, setPendingDocDelete] = useState<{
+    dbName: string; colName: string; docId: string; onSuccess?: () => void;
+  } | null>(null);
+
   const deleteDocumentById = async (dbName: string, colName: string, docId: string, onSuccess?: () => void) => {
-    if (
-      !confirm(
-        `Permanently delete this document?\n\n${dbName}.${colName}\nID: ${docId}\n\nThis cannot be undone.`
-      )
-    ) {
-      return;
-    }
     try {
       const res = await fetch(
         `${env.VITE_API_URL}/api/nosql/databases/${encodeURIComponent(dbName)}/collections/${encodeURIComponent(colName)}/documents/${docId}`,
@@ -910,9 +908,13 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
                         onClick={() => openDocView(doc)}
                         onEdit={() => startEditDoc(doc)}
                         onDelete={() =>
-                          void deleteDocumentById(view.dbName, view.colName, doc.id, () =>
-                            fetchDocuments(view.dbName, view.colName, docPage, filterKey, filterValue)
-                          )
+                          setPendingDocDelete({
+                            dbName: view.dbName,
+                            colName: view.colName,
+                            docId: doc.id,
+                            onSuccess: () =>
+                              fetchDocuments(view.dbName, view.colName, docPage, filterKey, filterValue),
+                          })
                         }
                       />
                     ))}
@@ -953,9 +955,13 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
                 onFormat={formatJson}
                 onDelete={() => {
                   if (view.screen !== "document") return;
-                  void deleteDocumentById(view.dbName, view.colName, view.docId, () =>
-                    navigate({ screen: "documents", dbName: view.dbName, colName: view.colName })
-                  );
+                  setPendingDocDelete({
+                    dbName: view.dbName,
+                    colName: view.colName,
+                    docId: view.docId,
+                    onSuccess: () =>
+                      navigate({ screen: "documents", dbName: view.dbName, colName: view.colName }),
+                  });
                 }}
                 playBeep={playBeep}
               />
@@ -965,6 +971,25 @@ export function NoSqlClient({ token, onBack, playBeep }: Props) {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={pendingDocDelete !== null}
+        title="Delete document"
+        message={`Permanently delete this document?\n\n${pendingDocDelete?.dbName}.${pendingDocDelete?.colName}\nID: ${pendingDocDelete?.docId}\n\nThis cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onCancel={() => setPendingDocDelete(null)}
+        onConfirm={() => {
+          if (pendingDocDelete) {
+            void deleteDocumentById(
+              pendingDocDelete.dbName,
+              pendingDocDelete.colName,
+              pendingDocDelete.docId,
+              pendingDocDelete.onSuccess,
+            );
+          }
+          setPendingDocDelete(null);
+        }}
+      />
     </ModuleShell>
   );
 }

@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
+import { useAuthHeaders } from "@/hooks/useAuthHeaders";
 import { toLocalDateInput, parseLocalDate, calendarMonthRange } from "@/components/expense/shared";
 import { createClockTodoSchema } from "@shared/validation/models";
 import { validateInput } from "@/lib/form-validation";
@@ -124,10 +125,7 @@ export function ClockCalendar({ token, playBeep }: ClockCalendarProps) {
   const [viewMonth, setViewMonth] = useState(() => selectedDate ?? now);
   const { startMonth, endMonth } = calendarMonthRange(now);
 
-  const headers = useMemo(
-    () => ({ Authorization: `Bearer ${token}`, "Content-Type": "application/json" }),
-    [token],
-  );
+  const headers = useAuthHeaders(token);
 
   const load = useCallback(async () => {
     setLoading(true);

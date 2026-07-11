@@ -4,7 +4,6 @@ import {
   Plus,
   Trash2,
   Save,
-  Check,
   Clock,
   Activity,
   Copy,
@@ -12,12 +11,14 @@ import {
   X,
 } from "lucide-react";
 import { env } from "@/env";
+import { useAuthHeaders } from "@/hooks/useAuthHeaders";
 import { cn } from "@/lib/utils";
 import { AppButton } from "./ui/AppButton";
 import { AppInput } from "./ui/AppInput";
 import { AppTextArea } from "./ui/AppTextArea";
 import { EmptyState } from "./ui/EmptyState";
 import { ErrorBanner } from "./ui/ErrorBanner";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { ModuleHeaderBar } from "./ui/ModuleHeaderBar";
 import { ModuleShell } from "./ui/ModuleShell";
 import { SectionHeader } from "./ui/SectionHeader";
@@ -101,10 +102,7 @@ export function CronScheduler({ token, onBack }: Props) {
   const [mockResponseStatus, setMockResponseStatus] = useState(200);
   const [mockResponseBody, setMockResponseBody] = useState("");
 
-  const apiHeaders = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
+  const apiHeaders = useAuthHeaders(token);
 
   const fetchJobs = async () => {
     setLoadingJobs(true);
@@ -330,9 +328,10 @@ export function CronScheduler({ token, onBack }: Props) {
     }
   };
 
+  const [pendingDeleteJob, setPendingDeleteJob] = useState(false);
+
   const handleDelete = async () => {
     if (!selectedJob) return;
-    if (!confirm(`Delete schedule "${selectedJob.name}"?`)) return;
 
     setError(null);
     setSuccess(null);
@@ -538,13 +537,7 @@ export function CronScheduler({ token, onBack }: Props) {
         <ToolPanel>
           {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
           {success && (
-            <div className="mb-3 border border-emerald-500/20 bg-emerald-500/5 p-2 font-mono text-xs text-emerald-400 rounded-sm flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Check className="size-4" />
-                <span>{success}</span>
-              </div>
-              <button onClick={() => setSuccess(null)} className="text-zinc-500 hover:text-white">×</button>
-            </div>
+            <ErrorBanner message={success} variant="success" onDismiss={() => setSuccess(null)} />
           )}
 
           {!selectedJob && !isCreating ? (
@@ -822,7 +815,7 @@ export function CronScheduler({ token, onBack }: Props) {
                         <AppButton
                           type="button"
                           variant="ghost"
-                          onClick={handleDelete}
+                          onClick={() => setPendingDeleteJob(true)}
                           className="border-red-900/30 text-red-400 hover:border-red-700 hover:bg-red-900/10 min-h-[36px] py-1.5"
                           icon={<Trash2 className="size-3.5" strokeWidth={1.5} />}
                         >
@@ -910,6 +903,18 @@ export function CronScheduler({ token, onBack }: Props) {
           )}
         </ToolPanel>
       </ToolSplitGrid>
+      <ConfirmDialog
+        open={pendingDeleteJob}
+        title="Delete schedule"
+        message={`Delete schedule "${selectedJob?.name}"?`}
+        confirmLabel="Delete"
+        variant="danger"
+        onCancel={() => setPendingDeleteJob(false)}
+        onConfirm={() => {
+          setPendingDeleteJob(false);
+          handleDelete();
+        }}
+      />
     </ModuleShell>
   );
 }

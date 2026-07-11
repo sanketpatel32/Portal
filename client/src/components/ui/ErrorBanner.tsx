@@ -1,8 +1,8 @@
 import React from "react";
-import { AlertCircle, TriangleAlert, X } from "lucide-react";
+import { AlertCircle, TriangleAlert, CircleCheck, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type ErrorBannerVariant = "error" | "warning";
+type ErrorBannerVariant = "error" | "warning" | "success";
 
 interface ErrorBannerProps {
   message: string | null;
@@ -26,6 +26,12 @@ const variantStyles: Record<
     icon: "text-amber-400",
     text: "text-amber-100/90",
     Icon: TriangleAlert,
+  },
+  success: {
+    container: "border-emerald-500/20 bg-emerald-500/5",
+    icon: "text-emerald-400",
+    text: "text-emerald-100/90",
+    Icon: CircleCheck,
   },
 };
 

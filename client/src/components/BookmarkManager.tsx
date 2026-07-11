@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Bookmark as BookmarkIcon,
   Pencil,
@@ -12,6 +12,8 @@ import {
 import { env } from "@/env";
 import { usePersistentState } from "@/hooks/usePersistentState";
 import { useAuthHeaders } from "@/hooks/useAuthHeaders";
+import { useApiData } from "@/hooks/useApiData";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { parseApiError } from "@/lib/parse-api-error";
 import { validateInput } from "@/lib/form-validation";
 import {
@@ -34,6 +36,7 @@ import { SearchableSelect } from "./ui/SearchableSelect";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 import { EmptyState } from "./ui/EmptyState";
 import { ErrorBanner } from "./ui/ErrorBanner";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { SectionHeader } from "./ui/SectionHeader";
 
 type Bookmark = {
@@ -56,16 +59,47 @@ const TAG_OPTIONS = BOOKMARK_TAGS;
 export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep }) => {
   const apiHeaders = useAuthHeaders(token);
 
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   // Filter state
   const [searchInput, setSearchInput] = usePersistentState("auraflow_bookmark_searchInput", "");
-  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
   const [activeTag, setActiveTag] = usePersistentState<string | null>("auraflow_bookmark_activeTag", null);
   const [favoritesOnly, setFavoritesOnly] = usePersistentState("auraflow_bookmark_favoritesOnly", false);
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Data fetch — aborted automatically when deps change
+  const { data: bookmarksData, loading, error, refetch } = useApiData<{
+    bookmarks: Bookmark[];
+  }>(
+    useCallback(
+      async (signal) => {
+        const params = new URLSearchParams();
+        if (debouncedSearch) params.set("q", debouncedSearch);
+        if (activeTag) params.set("tag", activeTag);
+        if (favoritesOnly) params.set("favorite", "true");
+        const res = await fetch(`${env.VITE_API_URL}/api/bookmarks?${params}`, {
+          headers: apiHeaders,
+          signal,
+        });
+        if (!res.ok) throw new Error(await parseApiError(res));
+        return res.json();
+      },
+      [apiHeaders, debouncedSearch, activeTag, favoritesOnly],
+    ),
+    [],
+  );
+  const bookmarks = bookmarksData?.bookmarks ?? [];
+  // Optimistic favorite toggles — applied on top of fetched data for instant
+  // feedback before the PUT round-trip resolves.
+  const optimisticFavorites = useRef<Map<string, boolean>>(new Map());
+  const [bookmarksVersion, setBookmarksVersion] = useState(0);
+  const displayBookmarks = useMemo(() => {
+    void bookmarksVersion; // recompute when optimistic toggles change
+    if (optimisticFavorites.current.size === 0) return bookmarks;
+    return bookmarks.map((b) =>
+      optimisticFavorites.current.has(b.id)
+        ? { ...b, favorite: optimisticFavorites.current.get(b.id)! }
+        : b,
+    );
+  }, [bookmarks, bookmarksVersion]);
 
   // Inline editor state (no modal)
   const [editorOpen, setEditorOpen] = useState(false);
@@ -76,44 +110,6 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const urlInputRef = useRef<HTMLInputElement>(null);
-
-  const fetchBookmarks = useCallback(async (signal?: AbortSignal) => {
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (searchQuery) params.set("q", searchQuery);
-      if (activeTag) params.set("tag", activeTag);
-      if (favoritesOnly) params.set("favorite", "true");
-
-      const res = await fetch(`${env.VITE_API_URL}/api/bookmarks?${params}`, { headers: apiHeaders, signal });
-      if (!res.ok) {
-        setError(await parseApiError(res));
-        return;
-      }
-      const data = await res.json();
-      setBookmarks(data.bookmarks ?? []);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setError("Could not reach the server. Check your connection.");
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, [apiHeaders, searchQuery, activeTag, favoritesOnly]);
-
-  useEffect(() => {
-    const ac = new AbortController();
-    void fetchBookmarks(ac.signal);
-    return () => ac.abort();
-  }, [fetchBookmarks]);
-
-  // Debounced search input
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value);
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => setSearchQuery(value), 300);
-  };
-
-  useEffect(() => () => { if (searchTimer.current) clearTimeout(searchTimer.current); }, []);
 
   const openCreate = () => {
     setEditId(null);
@@ -171,7 +167,7 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
       }
       beep("success");
       closeEditor();
-      await fetchBookmarks();
+      await refetch();
     } catch {
       setFormError("Could not reach the server. Try again.");
       beep("error");
@@ -181,52 +177,56 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
   };
 
   const toggleFavorite = async (bookmark: Bookmark) => {
-    // Optimistic update
-    setBookmarks((prev) => prev.map((b) => (b.id === bookmark.id ? { ...b, favorite: !b.favorite } : b)));
+    // Optimistic update via local override map
+    const newFav = !bookmark.favorite;
+    optimisticFavorites.current.set(bookmark.id, newFav);
+    setBookmarksVersion((v) => v + 1);
     try {
       const res = await fetch(`${env.VITE_API_URL}/api/bookmarks/${bookmark.id}`, {
         method: "PUT",
         headers: apiHeaders,
-        body: JSON.stringify({ favorite: !bookmark.favorite }),
+        body: JSON.stringify({ favorite: newFav }),
       });
       if (!res.ok) {
-        setBookmarks((prev) => prev.map((b) => (b.id === bookmark.id ? { ...b, favorite: bookmark.favorite } : b)));
+        optimisticFavorites.current.delete(bookmark.id);
+        setBookmarksVersion((v) => v + 1);
         beep("error");
         return;
       }
       beep("click");
+      await refetch();
+      optimisticFavorites.current.delete(bookmark.id);
     } catch {
-      setBookmarks((prev) => prev.map((b) => (b.id === bookmark.id ? { ...b, favorite: bookmark.favorite } : b)));
+      optimisticFavorites.current.delete(bookmark.id);
+      setBookmarksVersion((v) => v + 1);
     }
   };
 
+  const [pendingDelete, setPendingDelete] = useState<Bookmark | null>(null);
+
   const handleDelete = async (bookmark: Bookmark) => {
-    if (!confirm(`Delete this bookmark?\n\n${bookmark.title || bookmark.url}\n\nThis cannot be undone.`)) {
-      return;
-    }
     try {
       const res = await fetch(`${env.VITE_API_URL}/api/bookmarks/${bookmark.id}`, {
         method: "DELETE",
         headers: apiHeaders,
       });
       if (!res.ok) {
-        setError(await parseApiError(res));
+        setFormError(await parseApiError(res));
         beep("error");
         return;
       }
       beep("success");
       if (editId === bookmark.id) closeEditor();
-      await fetchBookmarks();
+      await refetch();
     } catch {
-      setError("Could not delete the bookmark.");
+      setFormError("Could not delete the bookmark.");
       beep("error");
     }
   };
 
-  const hasActiveFilter = searchQuery !== "" || activeTag !== null || favoritesOnly;
+  const hasActiveFilter = debouncedSearch !== "" || activeTag !== null || favoritesOnly;
   const clearFilters = () => {
     setSearchInput("");
-    setSearchQuery("");
     setActiveTag(null);
     setFavoritesOnly(false);
   };
@@ -313,7 +313,7 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
       <div className={toolMainClass}>
         <SectionHeader
           title="Saved links"
-          count={bookmarks.length}
+          count={displayBookmarks.length}
           borderless
           className="border-b border-white/10 px-4 py-3"
           actions={
@@ -335,7 +335,7 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
               inputSize="sm"
               type="text"
               value={searchInput}
-              onChange={(e) => handleSearchChange(e.target.value)}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search title or url…"
               className="pl-9"
               aria-label="Search bookmarks"
@@ -389,12 +389,12 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
           })}
         </div>
 
-        <ErrorBanner message={error} onDismiss={() => setError(null)} />
+        <ErrorBanner message={error} onDismiss={() => refetch()} />
 
         {/* List */}
         {loading ? (
           <LoadingSpinner className="py-16" />
-        ) : bookmarks.length === 0 ? (
+        ) : displayBookmarks.length === 0 ? (
           <EmptyState
             icon={<BookmarkIcon strokeWidth={1} />}
             message={hasActiveFilter ? "No bookmarks match your filters" : "No bookmarks saved yet"}
@@ -411,18 +411,30 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
           />
         ) : (
           <div className={cn(toolScrollClass, "grid items-start gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}>
-            {bookmarks.map((bookmark) => (
+            {displayBookmarks.map((bookmark) => (
               <BookmarkCard
                 key={bookmark.id}
                 bookmark={bookmark}
                 onToggleFavorite={() => toggleFavorite(bookmark)}
                 onEdit={() => openEdit(bookmark)}
-                onDelete={() => handleDelete(bookmark)}
+                onDelete={() => setPendingDelete(bookmark)}
               />
             ))}
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete bookmark"
+        message={`Delete this bookmark?\n\n${pendingDelete?.title || pendingDelete?.url || ""}\n\nThis cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (pendingDelete) handleDelete(pendingDelete);
+          setPendingDelete(null);
+        }}
+      />
     </ModuleShell>
   );
 };

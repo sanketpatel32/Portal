@@ -6,6 +6,7 @@ import {
   type RecurringExpense,
 } from "./shared";
 import { deleteRecurringExpense } from "./api";
+import { useAuthHeaders } from "@/hooks/useAuthHeaders";
 
 type Props = {
   token: string;
@@ -16,7 +17,7 @@ type Props = {
 };
 
 export function RecurringExpensesList({ token, recurring, loading, playBeep, onChanged }: Props) {
-  const apiHeaders = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const apiHeaders = useAuthHeaders(token);
 
   const handleDelete = async (id: string) => {
     const ok = await deleteRecurringExpense(id, apiHeaders);

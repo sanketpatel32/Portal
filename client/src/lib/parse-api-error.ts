@@ -1,3 +1,6 @@
+/** Canonical network-unreachable message — used by every catch block. */
+export const NETWORK_ERROR = "Network error. Check that the server is running.";
+
 export async function parseApiError(res: Response): Promise<string> {
   try {
     const data = await res.json() as { error?: unknown; details?: { formErrors?: string[]; fieldErrors?: Record<string, string[]> } };
