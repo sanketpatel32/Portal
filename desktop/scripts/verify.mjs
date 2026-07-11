@@ -11,6 +11,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createServer } from "node:net";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
@@ -139,9 +140,9 @@ await step("smoke-test the compiled server", async () => {
 		OS: process.env.OS,
 		LANG: process.env.LANG,
 		PORT: String(port),
-		MONGODB_URI: "mongodb://127.0.0.1:1/verify-only",
 		PIN: "verify-pin",
 		DESKTOP_MODE: "1",
+		AURAFLOW_DATA_DIR: join(tmpdir(), `auraflow-verify-${port}`),
 		SERVER_PUBLIC_URL: `http://127.0.0.1:${port}`,
 		CLIENT_URL: `http://127.0.0.1:${port}`,
 	};
@@ -165,6 +166,14 @@ await step("smoke-test the compiled server", async () => {
 	const deadline = Date.now() + 20_000;
 	let apiOk = false;
 	let spaOk = false;
+	let loggedActualPort = false;
+
+	// The server's env loader reads server/.env (if present) which may override
+	// the PORT we set. Each probe iteration, re-parse the "running on" log line
+	// from serverOutput to extract the actual bound port.
+	let actualPort = port;
+	let actualBase = base;
+
 	// Give Bun a moment to actually bind the socket after the "running on"
 	// log line is printed.
 	await new Promise((r) => setTimeout(r, 1500));
@@ -173,13 +182,24 @@ await step("smoke-test the compiled server", async () => {
 			console.error(`[verify] child exited early with code ${child.exitCode}`);
 			break;
 		}
+		// Re-extract the bound port from the server's stdout (it may differ from
+		// what we requested if server/.env overrides PORT).
+		const portMatch = serverOutput.match(/running on http:\/\/[^:]+:(\d+)/);
+		if (portMatch) {
+			actualPort = Number(portMatch[1]);
+			actualBase = `http://127.0.0.1:${actualPort}`;
+			if (!loggedActualPort && actualPort !== port) {
+				console.log(`[verify] server bound to port ${actualPort} (from .env) instead of ${port}`);
+				loggedActualPort = true;
+			}
+		}
 		// Hit the SPA index as the readiness probe. The server serves the
 		// built Vite bundle (or the route handler returns 404 if no build
 		// exists) — both responses confirm the HTTP loop is alive.
-		const spaStatus = await httpGetStatus(`${base}/`);
+		const spaStatus = await httpGetStatus(`${actualBase}/`);
 		if (spaStatus > 0) {
 			apiOk = true;
-			const spaBody = await httpGetBody(`${base}/`);
+			const spaBody = await httpGetBody(`${actualBase}/`);
 			spaOk = spaStatus === 200 && spaBody.toLowerCase().includes("<!doctype html>");
 			break;
 		}

@@ -4,7 +4,7 @@ import type { RouteContext } from "./types";
 
 // Task count changes rarely but getMetrics() runs every 2.5s and on every
 // WebSocket open/close. Cache the count for a few seconds to avoid hammering
-// MongoDB on a 1 GB box.
+// SQLite on every tick.
 const TASK_COUNT_TTL_MS = 5_000;
 let taskCountCache = 0;
 let taskCountExpiresAt = 0;

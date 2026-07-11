@@ -1,9 +1,8 @@
-import { TaskModel, createTaskSchema, updateTaskSchema, isDbConnected } from "../db";
+import { TaskModel, createTaskSchema, updateTaskSchema, isDbConnected, isValidId } from "../db";
 import { getResponseHeaders } from "../http-context";
 import { invalidObjectIdResponse, updateFailureResponse, publishDeleteSuccess, readPathId } from "./helpers";
 import { invalidateTaskCountCache } from "./metrics";
 import { parseJsonBody } from "../request-validation";
-import mongoose from "mongoose";
 import type { RouteContext } from "./types";
 
 export async function handleTasks(ctx: RouteContext): Promise<Response | null> {
@@ -44,7 +43,7 @@ export async function handleTasks(ctx: RouteContext): Promise<Response | null> {
         return parsed.response;
       }
 
-      const newTask = new TaskModel(parsed.data);
+      const newTask = TaskModel.of(parsed.data);
       await newTask.save();
 
       const taskJSON = newTask.toJSON();
@@ -69,7 +68,7 @@ export async function handleTasks(ctx: RouteContext): Promise<Response | null> {
 
   const id = readPathId(url.pathname, "/api/tasks/");
   if (id) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!isValidId(id)) {
       return invalidObjectIdResponse(req, "task ID format");
     }
 

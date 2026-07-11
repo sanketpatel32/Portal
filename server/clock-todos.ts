@@ -1,6 +1,6 @@
 import {
   ClockTodoModel,
-  IClockTodoDocument,
+  type IClockTodoDocument,
   parseClockTodoDeadline,
 } from "./db";
 import type { CreateClockTodoInput, UpdateClockTodoInput } from "../shared/validation/models";

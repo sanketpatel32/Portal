@@ -38,17 +38,37 @@ function loadServerDotEnv() {
 
 loadServerDotEnv();
 
-const mongoUriSchema = z
-	.string()
-	.min(1, "MONGODB_URI is required in server/.env")
-	.refine(
-		(value) => value.startsWith("mongodb://") || value.startsWith("mongodb+srv://"),
-		"MONGODB_URI must start with mongodb:// or mongodb+srv://"
+// Mongo URI is now optional — the app's own data lives in SQLite. It's still
+// accepted so the NoSQL client tool's isAppMongoUri() guardrail can keep
+// blocking connections to the app's own (legacy) Mongo if one is configured.
+const optionalMongoUriSchema = z
+	.preprocess(
+		(v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+		z
+			.string()
+			.refine(
+				(value) => value.startsWith("mongodb://") || value.startsWith("mongodb+srv://"),
+				"MONGODB_URI must start with mongodb:// or mongodb+srv://"
+			)
+			.optional(),
 	);
 
 const envSchema = z.object({
 	PORT: z.coerce.number().default(3001),
-	MONGODB_URI: mongoUriSchema,
+	// SQLite file location. If unset, the server resolves a default path
+	// (server/auraflow.db in dev, <userData>/auraflow.db in the desktop build).
+	SQLITE_PATH: z.preprocess(
+		(v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+		z.string().min(1).optional(),
+	),
+	// Directory for the SQLite file when SQLITE_PATH is unset. The Electron
+	// wrapper sets this to the app's userData folder so the DB persists across
+	// updates and survives portable-.exe relocations.
+	AURAFLOW_DATA_DIR: z.preprocess(
+		(v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+		z.string().min(1).optional(),
+	),
+	MONGODB_URI: optionalMongoUriSchema,
 	CLIENT_URL: z.string().url().default("http://localhost:5173"),
 	PIN: z.string().min(1, "PIN is required in server/.env"),
 	// Empty string in .env should count as "not configured", not a validation
@@ -78,7 +98,7 @@ const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
 	console.error("❌ Invalid backend environment variables:", JSON.stringify(parsed.error.format(), null, 2));
-	console.error("   Check server/.env — MONGODB_URI must be your Atlas or local Mongo connection string.");
+	console.error("   Check server/.env — PIN is required. The app's own data now lives in SQLite (no Mongo needed).");
 	process.exit(1);
 }
 

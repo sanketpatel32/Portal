@@ -1,6 +1,5 @@
 import { BookmarkModel } from "./db";
-import type { CreateBookmarkInput, UpdateBookmarkInput } from "../shared/validation/models";
-import type { BookmarkListQuery } from "../shared/validation/bookmark";
+import type { CreateBookmarkInput, UpdateBookmarkInput, BookmarkListQuery } from "../shared/validation/bookmark";
 
 export type BookmarkListItem = {
   id: string;

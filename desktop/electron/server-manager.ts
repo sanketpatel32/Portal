@@ -106,6 +106,9 @@ export class ServerManager {
 			// google-calendar OAuth callback) resolve against the real bound port.
 			SERVER_PUBLIC_URL: `http://127.0.0.1:${this.port}`,
 			CLIENT_URL: `http://127.0.0.1:${this.port}`,
+			// Store the SQLite database in the Electron userData folder so it
+			// persists across app updates and survives portable-.exe relocations.
+			AURAFLOW_DATA_DIR: app.getPath("userData"),
 		};
 
 		if (resolved) {
@@ -124,8 +127,8 @@ export class ServerManager {
 	/**
 	 * Poll the server until it answers `/api/verify-token` with anything but a
 	 * connection error, or fail after 15 s. We hit verify-token (always 200/401,
-	 * no DB required) so the smoke test works even if Mongo is misconfigured.
-	 */
+		 * no DB required) so the smoke test works even if SQLite isn't ready yet.
+		 */
 	private async waitForReady(): Promise<void> {
 		const deadline = Date.now() + 15_000;
 		const url = `${this.url}/api/verify-token`;

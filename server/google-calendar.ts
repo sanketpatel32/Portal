@@ -1,6 +1,6 @@
 import crypto from "crypto";
-import mongoose from "mongoose";
 import { env, isGoogleCalendarConfigured } from "./env";
+import { getDb } from "./db";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -45,28 +45,60 @@ export type GoogleCalendarEvent = {
   allDay: boolean;
 };
 
-interface IGoogleTokenDocument extends mongoose.Document {
-  singletonKey: string;
+/**
+ * Google OAuth token record (singleton — one row per Google account).
+ * Stored in the `google_tokens` SQLite table.
+ */
+interface GoogleTokenRow {
   accessToken: string;
   refreshToken: string;
   expiresAt: Date;
   email?: string;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
-const googleTokenSchema = new mongoose.Schema<IGoogleTokenDocument>(
-  {
-    singletonKey: { type: String, required: true, unique: true, default: "default" },
-    accessToken: { type: String, required: true },
-    refreshToken: { type: String, required: true },
-    expiresAt: { type: Date, required: true },
-    email: { type: String },
-  },
-  { timestamps: true }
-);
+/** Read the singleton token row, if any. */
+function getGoogleToken(): GoogleTokenRow | null {
+  const row = getDb().prepare("SELECT * FROM google_tokens WHERE singleton_key = ?").get("default") as
+    | Record<string, unknown>
+    | null;
+  if (!row) return null;
+  return {
+    accessToken: row.access_token as string,
+    refreshToken: row.refresh_token as string,
+    expiresAt: new Date(row.expires_at as string),
+    email: (row.email as string) || undefined,
+  };
+}
 
-const GoogleTokenModel = mongoose.model<IGoogleTokenDocument>("GoogleToken", googleTokenSchema);
+/** Upsert the singleton token row. */
+function upsertGoogleToken(data: GoogleTokenRow): void {
+  const now = new Date().toISOString();
+  getDb()
+    .prepare(
+      `INSERT INTO google_tokens (singleton_key, access_token, refresh_token, expires_at, email, created_at, updated_at)
+       VALUES ('default', ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(singleton_key) DO UPDATE SET
+         access_token = excluded.access_token,
+         refresh_token = excluded.refresh_token,
+         expires_at = excluded.expires_at,
+         email = excluded.email,
+         updated_at = excluded.updated_at`,
+    )
+    .run(data.accessToken, data.refreshToken, data.expiresAt.toISOString(), data.email ?? null, now, now);
+}
+
+/** Update the access token + expiry on the singleton row (used after refresh). */
+function patchGoogleToken(patch: { accessToken: string; expiresAt: Date }): void {
+  const now = new Date().toISOString();
+  getDb()
+    .prepare("UPDATE google_tokens SET access_token = ?, expires_at = ?, updated_at = ? WHERE singleton_key = ?")
+    .run(patch.accessToken, patch.expiresAt.toISOString(), now, "default");
+}
+
+/** Delete the singleton token row (disconnect / refresh failure). */
+function deleteGoogleToken(): void {
+  getDb().prepare("DELETE FROM google_tokens WHERE singleton_key = ?").run("default");
+}
 
 export function googleCalendarConfigured(): boolean {
   return isGoogleCalendarConfigured();
@@ -171,7 +203,7 @@ async function fetchGoogleEmail(accessToken: string): Promise<string | undefined
 
 export async function saveGoogleTokensFromCode(code: string): Promise<{ email?: string }> {
   const tokens = await exchangeCodeForTokens(code);
-  const existing = await GoogleTokenModel.findOne({ singletonKey: "default" });
+  const existing = getGoogleToken();
   const refreshToken = tokens.refresh_token ?? existing?.refreshToken;
   if (!refreshToken) {
     throw new Error("Google did not return a refresh token. Disconnect and connect again.");
@@ -180,22 +212,13 @@ export async function saveGoogleTokensFromCode(code: string): Promise<{ email?: 
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
   const email = await fetchGoogleEmail(tokens.access_token);
 
-  await GoogleTokenModel.findOneAndUpdate(
-    { singletonKey: "default" },
-    {
-      accessToken: tokens.access_token,
-      refreshToken,
-      expiresAt,
-      email,
-    },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+  upsertGoogleToken({ accessToken: tokens.access_token, refreshToken, expiresAt, email });
 
   return { email };
 }
 
 async function getValidAccessToken(): Promise<string | null> {
-  const record = await GoogleTokenModel.findOne({ singletonKey: "default" });
+  const record = getGoogleToken();
   if (!record) return null;
 
   const bufferMs = 60_000;
@@ -205,18 +228,17 @@ async function getValidAccessToken(): Promise<string | null> {
 
   try {
     const refreshed = await refreshAccessToken(record.refreshToken);
-    record.accessToken = refreshed.access_token;
-    record.expiresAt = new Date(Date.now() + refreshed.expires_in * 1000);
-    await record.save();
-    return record.accessToken;
+    const newExpiresAt = new Date(Date.now() + refreshed.expires_in * 1000);
+    patchGoogleToken({ accessToken: refreshed.access_token, expiresAt: newExpiresAt });
+    return refreshed.access_token;
   } catch {
-    await GoogleTokenModel.deleteOne({ singletonKey: "default" });
+    deleteGoogleToken();
     return null;
   }
 }
 
 export async function getGoogleCalendarStatus(): Promise<{ connected: boolean; email?: string }> {
-  const record = await GoogleTokenModel.findOne({ singletonKey: "default" });
+  const record = getGoogleToken();
   if (!record) {
     return { connected: false };
   }
@@ -230,7 +252,7 @@ export async function getGoogleCalendarStatus(): Promise<{ connected: boolean; e
 }
 
 export async function disconnectGoogleCalendar(): Promise<void> {
-  await GoogleTokenModel.deleteOne({ singletonKey: "default" });
+  deleteGoogleToken();
 }
 
 function parseEventDate(value?: { date?: string; dateTime?: string }): { iso: string; allDay: boolean } {

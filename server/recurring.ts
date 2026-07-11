@@ -66,7 +66,7 @@ export async function syncRecurringExpenses(): Promise<number> {
     }
 
     const exists = await ExpenseModel.exists({
-      recurringId: template._id,
+      recurringId: template.id,
       date: { $gte: start, $lte: end },
     });
     if (exists) continue;
@@ -78,7 +78,7 @@ export async function syncRecurringExpenses(): Promise<number> {
       category: template.category,
       tags: [],
       date: expenseDateForMonth(template, now.getFullYear(), now.getMonth()),
-      recurringId: template._id,
+      recurringId: template.id,
     });
     created++;
   }

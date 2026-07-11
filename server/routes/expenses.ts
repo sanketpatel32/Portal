@@ -7,12 +7,12 @@ import {
   updateRecurringExpenseSchema,
   parseExpenseDateInput,
   isDbConnected,
+  isValidId,
 } from "../db";
 import { syncRecurringExpenses, syncRecurringExpensesThrottled, monthRangeFromParam } from "../recurring";
 import { getResponseHeaders } from "../http-context";
 import { invalidObjectIdResponse, updateFailureResponse, publishDeleteSuccess, readPathId } from "./helpers";
 import { parseJsonBody } from "../request-validation";
-import mongoose from "mongoose";
 import type { RouteContext } from "./types";
 
 function buildExpenseFilter(searchParams: URLSearchParams) {
@@ -67,7 +67,7 @@ export async function handleExpenses(ctx: RouteContext): Promise<Response | null
       const filter = buildExpenseFilter(url.searchParams);
       const matchStage = Object.keys(filter).length ? [{ $match: filter }] : [];
 
-      let pipeline: mongoose.PipelineStage[];
+      let pipeline: Record<string, unknown>[];
       if (groupBy === "type") {
         pipeline = [
           ...matchStage,
@@ -148,7 +148,7 @@ export async function handleExpenses(ctx: RouteContext): Promise<Response | null
 
   if (url.pathname.startsWith("/api/expenses/recurring/") && url.pathname.length > "/api/expenses/recurring/".length) {
     const recId = url.pathname.slice("/api/expenses/recurring/".length);
-    if (!mongoose.Types.ObjectId.isValid(recId)) {
+    if (!isValidId(recId)) {
       return invalidObjectIdResponse(req, "recurring expense ID");
     }
     if (req.method === "PUT") {
@@ -260,7 +260,7 @@ export async function handleExpenses(ctx: RouteContext): Promise<Response | null
       if (!parsed.ok) {
         return parsed.response;
       }
-      const exp = new ExpenseModel({
+      const exp = ExpenseModel.of({
         ...parsed.data,
         date: parseExpenseDateInput(parsed.data.date),
       });
@@ -278,7 +278,7 @@ export async function handleExpenses(ctx: RouteContext): Promise<Response | null
 
   const expenseId = readPathId(url.pathname, "/api/expenses/");
   if (expenseId) {
-    if (!mongoose.Types.ObjectId.isValid(expenseId)) {
+    if (!isValidId(expenseId)) {
       return invalidObjectIdResponse(req, "expense ID format");
     }
     if (req.method === "PUT") {

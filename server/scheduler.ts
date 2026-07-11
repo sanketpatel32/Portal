@@ -79,7 +79,7 @@ export async function executeCronJob(job: ICronJobDocument, server?: any): Promi
   // 1. Write Log
   try {
     await CronJobLogModel.create({
-      jobId: job._id,
+      jobId: job.id,
       timestamp: new Date(),
       mode: job.mode,
       url: job.url,
@@ -121,9 +121,9 @@ export async function executeCronJob(job: ICronJobDocument, server?: any): Promi
         "activity",
         JSON.stringify({
           type: "cron_job_executed",
-          data: {
-            jobId: job._id.toString(),
-            name: job.name,
+            data: {
+              jobId: job.id,
+              name: job.name,
             timestamp: Date.now(),
             mode: job.mode,
             url: job.url,
@@ -166,7 +166,7 @@ export function startScheduler(server: any) {
 
       const toRun = dueJobs
         .filter((job) => {
-          const id = job._id.toString();
+          const id = job.id;
           if (inFlight.has(id)) return false; // still running from a previous tick
           inFlight.add(id);
           return true;
@@ -179,7 +179,7 @@ export function startScheduler(server: any) {
         await Promise.all(
           toRun.map((job) =>
             executeCronJob(job, server).finally(() => {
-              inFlight.delete(job._id.toString());
+              inFlight.delete(job.id);
             }),
           ),
         );

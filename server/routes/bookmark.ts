@@ -1,5 +1,4 @@
-import mongoose from "mongoose";
-import { isDbConnected } from "../db";
+import { isDbConnected, isValidId } from "../db";
 import { getResponseHeaders } from "../http-context";
 import {
   createBookmark,
@@ -78,7 +77,7 @@ export async function handleBookmarks(ctx: RouteContext): Promise<Response | nul
   // /api/bookmarks/:id
   if (url.pathname.startsWith("/api/bookmarks/") && url.pathname.length > "/api/bookmarks/".length) {
     const id = url.pathname.slice("/api/bookmarks/".length);
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!isValidId(id)) {
       return errorResponse(req, "Invalid bookmark ID", 400);
     }
 

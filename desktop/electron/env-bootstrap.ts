@@ -21,16 +21,12 @@ export function ensureUserEnv(): { envPath: string; ok: boolean } {
 
 	const template = `# AuraFlow desktop environment
 # Filled in on first launch. Edit and restart the app.
+# The app's data is stored in SQLite (auraflow.db in this folder) — no
+# external database required.
 
 # Port the server listens on. Leave 0 to let the desktop wrapper pick a free
 # port automatically (recommended).
 PORT=0
-
-# MongoDB connection string. The default points to a local Mongo on the
-# default port — replace with your Atlas URI or local install. The server
-# will warn and start in a degraded mode (no DB features) if Mongo is
-# unreachable, so an empty / wrong value here won't crash the app.
-MONGODB_URI=mongodb://127.0.0.1:27017/auraflow
 
 # PIN users type to unlock the app (any non-empty string).
 PIN=1234
@@ -54,13 +50,15 @@ GITHUB_TOKEN=
  * Returns a brief, human-readable summary of the env file. Surfaced in the
  * renderer so users know where to look if something's wrong.
  */
-export function envSummary(envPath: string): { path: string; lines: number; hasMongo: boolean; hasPin: boolean } {
+export function envSummary(envPath: string): { path: string; lines: number; hasDb: boolean; hasPin: boolean } {
 	if (!existsSync(envPath)) {
-		return { path: envPath, lines: 0, hasMongo: false, hasPin: false };
+		return { path: envPath, lines: 0, hasDb: false, hasPin: false };
 	}
 	const text = readFileSync(envPath, "utf8");
 	const lines = text.split(/\r?\n/);
-	const hasMongo = /^MONGODB_URI=.+$/m.test(text) && !/^MONGODB_URI=\s*$/m.test(text);
+	// The app uses SQLite by default (always available), so hasDb is true once
+	// the .env exists. We keep the field for UI continuity.
+	const hasDb = true;
 	const hasPin = /^PIN=.+$/m.test(text) && !/^PIN=\s*$/m.test(text);
-	return { path: envPath, lines: lines.length, hasMongo, hasPin };
+	return { path: envPath, lines: lines.length, hasDb, hasPin };
 }

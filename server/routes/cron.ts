@@ -1,8 +1,7 @@
-import { CronJobModel, CronJobLogModel, createCronJobSchema, updateCronJobSchema, isDbConnected } from "../db";
+import { CronJobModel, CronJobLogModel, createCronJobSchema, updateCronJobSchema, isDbConnected, isValidId } from "../db";
 import { getResponseHeaders } from "../http-context";
 import { invalidObjectIdResponse, updateFailureResponse, publishDeleteSuccess, readPathId } from "./helpers";
 import { parseJsonBody } from "../request-validation";
-import mongoose from "mongoose";
 import type { RouteContext } from "./types";
 import { calculateNextRun, executeCronJob } from "../scheduler";
 
@@ -39,7 +38,7 @@ export async function handleCron(ctx: RouteContext): Promise<Response | null> {
 
       // Write log of mock endpoint execution
       await CronJobLogModel.create({
-        jobId: job._id,
+        jobId: job.id,
         timestamp: new Date(),
         mode: "mock",
         url: url.pathname,
@@ -56,7 +55,7 @@ export async function handleCron(ctx: RouteContext): Promise<Response | null> {
         JSON.stringify({
           type: "cron_job_executed",
           data: {
-            jobId: job._id.toString(),
+            jobId: job.id,
             name: `${job.name} (Mock Server Hit)`,
             timestamp: Date.now(),
             mode: "mock",
@@ -137,7 +136,7 @@ export async function handleCron(ctx: RouteContext): Promise<Response | null> {
       }
 
       const nextRun = calculateNextRun(parsed.data);
-      const newJob = new CronJobModel({
+      const newJob = CronJobModel.of({
         ...parsed.data,
         nextRun,
       });
@@ -178,14 +177,14 @@ export async function handleCron(ctx: RouteContext): Promise<Response | null> {
       jobId = id.slice(0, -8); // remove '/trigger'
     }
 
-    if (!mongoose.Types.ObjectId.isValid(jobId)) {
+    if (!isValidId(jobId)) {
       return invalidObjectIdResponse(req, "cron job ID format");
     }
 
     // 4. GET /api/cron/jobs/:id/logs
     if (isLogsPath && req.method === "GET") {
       try {
-        const logs = await CronJobLogModel.find({ jobId: new mongoose.Types.ObjectId(jobId) })
+        const logs = await CronJobLogModel.find({ jobId })
           .sort({ timestamp: -1 })
           .limit(100);
         return new Response(JSON.stringify(logs), {
@@ -292,7 +291,7 @@ export async function handleCron(ctx: RouteContext): Promise<Response | null> {
         }
 
         // Clean up logs
-        await CronJobLogModel.deleteMany({ jobId: new mongoose.Types.ObjectId(jobId) });
+        await CronJobLogModel.deleteMany({ jobId });
 
         return publishDeleteSuccess(req, server, {
           activityType: "cron_job_deleted",

@@ -1,4 +1,4 @@
-import { isDbConnected } from "../db";
+import { isDbConnected, isValidId } from "../db";
 import {
   buildClockAgenda,
   createClockTodo,
@@ -10,7 +10,6 @@ import { getResponseHeaders } from "../http-context";
 import { createClockTodoSchema, updateClockTodoSchema } from "../../shared/validation/models";
 import { clockAgendaQuerySchema, clockTodosQuerySchema } from "../../shared/validation/query";
 import { parseJsonBody, parseQueryParams } from "../request-validation";
-import mongoose from "mongoose";
 import type { RouteContext } from "./types";
 
 export async function handleClock(ctx: RouteContext): Promise<Response | null> {
@@ -84,7 +83,7 @@ export async function handleClock(ctx: RouteContext): Promise<Response | null> {
 
   if (url.pathname.startsWith("/api/clock/todos/") && url.pathname.length > "/api/clock/todos/".length) {
     const todoId = url.pathname.slice("/api/clock/todos/".length);
-    if (!mongoose.Types.ObjectId.isValid(todoId)) {
+    if (!isValidId(todoId)) {
       return new Response(JSON.stringify({ error: "Invalid todo ID" }), {
         status: 400,
         headers: getResponseHeaders(req),
