@@ -270,6 +270,21 @@ function App() {
 	// Whether a subapp (overlay) is currently open.
 	const subappOpen = activeApp !== null;
 
+	// Escape-to-go-home from a subapp (unless focus is inside an input/textarea,
+	// where sub-components manage their own Escape behavior).
+	useEffect(() => {
+		if (!subappOpen) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key !== "Escape") return;
+			const t = e.target as HTMLElement;
+			if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+			goHome();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [subappOpen]);
+
 	return (
 		<div className="min-h-screen bg-black text-white relative overflow-hidden flex flex-col font-sans">
 			{/* NOTE: no global `select-none` — it blocked selecting/copying output
