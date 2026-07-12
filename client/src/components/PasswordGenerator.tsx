@@ -13,6 +13,7 @@ const LOWER = "abcdefghijklmnopqrstuvwxyz";
 const NUMBERS = "0123456789";
 const SYMBOLS = "!@#$%^&*()-_=+[]{};:,.<>?/~";
 const AMBIGUOUS = "Il1O0o";
+const HISTORY_LIMIT = 10;
 
 const CHARSETS = {
 	upper: UPPER,
@@ -167,7 +168,7 @@ export const PasswordTool: React.FC = () => {
 	const [history, setHistory] = usePersistentState<string[]>(
 		"auraflow_pw_history",
 		[] as string[],
-		(raw) => (Array.isArray(raw) ? raw.slice(0, 10) : []),
+		(raw) => (Array.isArray(raw) ? raw.slice(0, HISTORY_LIMIT) : []),
 	);
 
 	const [password, setPassword] = useState("");
@@ -187,7 +188,7 @@ export const PasswordTool: React.FC = () => {
 			return;
 		}
 		setPassword(next);
-		setHistory((prev) => [next, ...prev.filter((p) => p !== next)].slice(0, 10));
+		setHistory((prev) => [next, ...prev.filter((p) => p !== next)].slice(0, HISTORY_LIMIT));
 		playBeep("success");
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [length, useUpper, useLower, useNumbers, useSymbols, excludeAmbiguous]);
