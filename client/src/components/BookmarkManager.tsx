@@ -256,7 +256,7 @@ export const BookmarkManager: React.FC<Props> = ({ token, onBack, playBeep: beep
 
       {/* Inline editor panel */}
       {editorOpen && (
-        <form onSubmit={handleSubmit} className={cn(panelClass, "mb-3 flex flex-col gap-2 p-3")}>
+        <form onSubmit={handleSubmit} onKeyDown={(e) => { if (e.key === "Escape") closeEditor(); }} className={cn(panelClass, "mb-3 flex flex-col gap-2 p-3")}>
           <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
             <AppInput
               ref={urlInputRef}
