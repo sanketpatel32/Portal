@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { AppButton } from "@/components/ui/AppButton";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -21,12 +21,16 @@ export const AppModal: React.FC<AppModalProps> = ({
   className,
   panelClassName,
 }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
+    // Move focus into the dialog so keyboard/screen-reader users land inside.
+    panelRef.current?.focus();
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
@@ -43,8 +47,10 @@ export const AppModal: React.FC<AppModalProps> = ({
       onClick={onClose}
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className={cn(
-          "flex max-h-[min(80vh,600px)] w-full max-w-2xl animate-scale-up flex-col overflow-hidden border border-white/10 bg-[#0a0a0a]",
+          "flex max-h-[min(80vh,600px)] w-full max-w-2xl animate-scale-up flex-col overflow-hidden border border-white/10 bg-[#0a0a0a] outline-none",
           panelClassName
         )}
         onClick={(event) => event.stopPropagation()}
