@@ -374,12 +374,15 @@ export function CronScheduler({ token, onBack }: Props) {
     }
   };
 
+  const [toggling, setToggling] = useState(false);
+
   const handleToggleActive = async () => {
     if (!selectedJob) return;
     setError(null);
     setSuccess(null);
-    
+
     const nextActiveState = !selectedJob.active;
+    setToggling(true);
 
     try {
       const res = await fetch(`${env.VITE_API_URL}/api/cron/jobs/${selectedJob.id}`, {
@@ -390,11 +393,13 @@ export function CronScheduler({ token, onBack }: Props) {
 
       if (!res.ok) throw new Error("Failed to update status");
       const updated = await res.json();
-      
+
       setSelectedJob(updated);
       setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
     } catch (err: any) {
       setError(err.message || "Failed to toggle status");
+    } finally {
+      setToggling(false);
     }
   };
 
@@ -567,14 +572,15 @@ export function CronScheduler({ token, onBack }: Props) {
                 {!isCreating && selectedJob && (
                   <button
                     onClick={handleToggleActive}
+                    disabled={toggling}
                     className={cn(
-                      "px-2 py-0.5 font-mono text-[10px] border uppercase tracking-wider transition-app rounded-sm cursor-pointer",
+                      "px-2 py-0.5 font-mono text-[10px] border uppercase tracking-wider transition-app rounded-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
                       selectedJob.active
                         ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5 hover:border-emerald-500"
                         : "border-zinc-700 text-zinc-500 bg-zinc-800/10 hover:border-zinc-500"
                     )}
                   >
-                    {selectedJob.active ? "Pause" : "Resume"}
+                    {toggling ? "…" : selectedJob.active ? "Pause" : "Resume"}
                   </button>
                 )}
               </div>
@@ -714,6 +720,8 @@ export function CronScheduler({ token, onBack }: Props) {
                             <button
                               type="button"
                               onClick={() => copyToClipboard(mockPath)}
+                              aria-label={copiedPathId === mockPath ? "Copied mock URL" : "Copy mock URL"}
+                              title={copiedPathId === mockPath ? "Copied!" : "Copy mock URL"}
                               className="text-zinc-500 hover:text-white transition-colors cursor-pointer"
                             >
                               {copiedPathId === mockPath ? <CheckCheck className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
